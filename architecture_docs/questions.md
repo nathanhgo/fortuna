@@ -43,6 +43,14 @@ viva para implementação são os outros três documentos, não este.
 
 ## Próxima rodada de perguntas
 
-Nenhuma pergunta nova pendente neste momento. Novas perguntas serão adicionadas aqui conforme
-surgirem durante o desenvolvimento (ex.: decisões técnicas específicas do scaffold, como escolha
-entre Redis ou memória local para o channel layer do Django Channels em desenvolvimento).
+1. **Coup — “comprar cartas”.** No jogo oficial não existe loja: cada um começa com 2 cartas de
+   influência e só troca com a corte (Embaixador / Inquisidor). Implementei essa troca (as cartas
+   novas aparecem na mesa e você escolhe o que fica). Se a ideia era outra (regra da casa, loja
+   com moedas, etc.), diz qual.
+2. **Coup — baralho default.** O `mvp.md` fala em “2 cópias de cada”; o oficial é **3** de cada
+   (15 cartas). Com 2 cópias a mesa de 6 jogadores não fecha (faltam cartas). Usei 3, configurável
+   de 1 a 5 pelo anfitrião.
+3. **Coup — janela de contestação/bloqueio.** Padrão **15 segundos**, o anfitrião escolhe 10/15/20
+   na config. Se quiser outro valor (ou sem relógio, só “passar” manual), avisa.
+4. **Reformation — facção inicial.** O primeiro a sentar começa Lealista e os outros alternam.
+   No papel o anfitrião escolhe o lado. Quer essa escolha na mesa?

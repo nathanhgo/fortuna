@@ -4,27 +4,9 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { CreateRoomForm } from '@/components/CreateRoomForm';
+import { GameCoverCard } from '@/components/GameCoverCard';
+import { GAME_CATALOG } from '@/lib/catalog';
 import { fortunaColors } from '@/theme/palette';
-
-const games = [
-  {
-    name: 'Xadrez',
-    cover: '/images/game-covers/chess-cover.png',
-    description:
-      'Escolha entre a partida fiel ao tabuleiro físico ou o modo assistido, com dicas, notação e relógio.',
-  },
-  {
-    name: 'Coup',
-    cover: '/images/game-covers/coup-cover.png',
-    description:
-      'Blefe, acuse e conquiste a corte. Configure quais personagens entram na mesa antes de começar.',
-  },
-  {
-    name: 'Batalha Naval',
-    cover: '/images/game-covers/battleship-cover.png',
-    description: 'Posicione sua frota e ataque as coordenadas do adversário até afundar tudo.',
-  },
-];
 
 export default function HomePage() {
   return (
@@ -59,36 +41,19 @@ export default function HomePage() {
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
               gap: 3,
             }}
           >
-            {games.map((game) => (
-              <Stack
-                key={game.name}
-                component="div"
-                spacing={1.5}
-                sx={{
-                  border: `1px solid ${fortunaColors.gold}33`,
-                  p: 2,
-                  bgcolor: fortunaColors.ivory,
-                }}
-              >
-                <Box sx={{ position: 'relative', width: '100%', aspectRatio: '4 / 3' }}>
-                  <Image
-                    src={game.cover}
-                    alt={`Ilustração do jogo ${game.name}`}
-                    fill
-                    style={{ objectFit: 'contain' }}
-                  />
-                </Box>
-                <Typography variant="h5" component="h3" sx={{ color: fortunaColors.graphite }}>
-                  {game.name}
-                </Typography>
-                <Typography variant="body2" sx={{ color: fortunaColors.graphite, opacity: 0.8 }}>
-                  {game.description}
-                </Typography>
-              </Stack>
+            {GAME_CATALOG.map((game) => (
+              <GameCoverCard
+                key={game.slug}
+                name={game.name}
+                cover={game.cover}
+                description={game.description}
+                href={game.path}
+                comingSoon={!game.available}
+              />
             ))}
           </Box>
         </Stack>

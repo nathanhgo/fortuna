@@ -34,4 +34,24 @@ urlpatterns = [
         views.GameInstanceRematchView.as_view(),
         name="game-instance-rematch",
     ),
+    path(
+        "<uuid:instance_id>/moves/",
+        views.ChessMoveView.as_view(),
+        name="chess-moves",
+    ),
+    path(
+        "<uuid:instance_id>/flag/",
+        views.ChessFlagView.as_view(),
+        name="chess-flag",
+    ),
+    path(
+        "<uuid:instance_id>/start/",
+        views.GameInstanceStartView.as_view(),
+        name="game-instance-start",
+    ),
+    path(
+        "<uuid:instance_id>/acts/",
+        views.CoupActView.as_view(),
+        name="coup-acts",
+    ),
 ]

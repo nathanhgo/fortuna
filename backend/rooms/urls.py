@@ -10,4 +10,14 @@ urlpatterns = [
         views.RoomPlayerListCreateView.as_view(),
         name="room-player-list-create",
     ),
+    path(
+        "rooms/<str:code>/players/me/",
+        views.RoomPlayerMeView.as_view(),
+        name="room-player-me",
+    ),
+    path(
+        "rooms/<str:code>/messages/",
+        views.RoomChatView.as_view(),
+        name="room-chat",
+    ),
 ]

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Player, Room
+from .models import ChatMessage, Player, Room
 
 
 class PlayerInline(admin.TabularInline):
@@ -18,6 +18,12 @@ class RoomAdmin(admin.ModelAdmin):
 
 @admin.register(Player)
 class PlayerAdmin(admin.ModelAdmin):
-    list_display = ["display_name", "room", "is_connected", "created_at"]
+    list_display = ["display_name", "avatar", "room", "is_connected", "created_at"]
     list_filter = ["is_connected"]
     readonly_fields = ["token", "created_at", "last_seen_at"]
+
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ["player", "room", "instance_id", "created_at"]
+    readonly_fields = ["created_at"]

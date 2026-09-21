@@ -1,10 +1,10 @@
 """
 Views de "jogos dentro da sala" — genéricas (criar/listar/entrar/configurar) na camada de
-`GameInstance`/`GameParticipant`, mas com um recorte específico da Batalha Naval (frota/tiros)
-até Xadrez e Coup ganharem motor próprio (ver mvp.md, Fases 3-4).
+`GameInstance`/`GameParticipant`, com recortes da Batalha Naval e do Xadrez (ver mvp.md).
 """
 
 import copy
+import time
 
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -18,9 +18,13 @@ from rooms.models import Player, Room
 from rooms.realtime import broadcast_room_event
 
 from .battleship import engine as battleship_engine
+from .chess import engine as chess_engine
+from .coup import engine as coup_engine
 from .models import (
     DEFAULT_CONFIG_BY_GAME,
     GAME_BATTLESHIP,
+    GAME_CHESS,
+    GAME_COUP,
     GameInstance,
     GameParticipant,
 )
@@ -28,9 +32,14 @@ from .serializers import (
     BattleshipConfigSerializer,
     BattleshipFleetSerializer,
     BattleshipShotSerializer,
+    ChessConfigSerializer,
+    ChessMoveSerializer,
+    CoupActSerializer,
+    CoupConfigSerializer,
     CreateGameInstanceSerializer,
     GameInstanceSerializer,
     JoinGameInstanceSerializer,
+    RematchSerializer,
 )
 
 ROOM_CODE_PARAMETER = OpenApiParameter(
@@ -55,9 +64,15 @@ PLAYER_TOKEN_PARAMETER = OpenApiParameter(
 
 def _instance_detail_for_player(instance: GameInstance, viewer: Player | None) -> dict:
     data = GameInstanceSerializer(instance).data
+    viewer_key = viewer.id if viewer else None
     if instance.game == GAME_BATTLESHIP and instance.state:
-        viewer_key = viewer.id if viewer else None
         data["state"] = battleship_engine.serialize_state_for_player(instance.state, viewer_key)
+    elif instance.game == GAME_CHESS and instance.state:
+        data["state"] = chess_engine.serialize_state_for_player(
+            instance.state, instance.config, viewer_key
+        )
+    elif instance.game == GAME_COUP and instance.state:
+        data["state"] = coup_engine.serialize_state_for_player(instance.state, viewer_key)
     else:
         data["state"] = None
     return data
@@ -108,6 +123,10 @@ class GameInstanceListCreateView(APIView):
 
         if game == GAME_BATTLESHIP:
             _validate_battleship_config(config)
+        elif game == GAME_CHESS:
+            _validate_chess_config(config)
+        elif game == GAME_COUP:
+            _validate_coup_config(config)
 
         instance = GameInstance.objects.create(room=room, game=game, config=config)
         GameParticipant.objects.create(instance=instance, player=player, seat=0)
@@ -140,6 +159,23 @@ class GameInstanceDetailView(APIView):
 
         return Response(_instance_detail_for_player(instance, viewer))
 
+    @extend_schema(
+        tags=["games"],
+        summary="Exclui a instância (só a autoridade de configuração, inclusive no meio do jogo)",
+        parameters=[ROOM_CODE_PARAMETER, INSTANCE_ID_PARAMETER, PLAYER_TOKEN_PARAMETER],
+        responses={204: None},
+    )
+    def delete(self, request, code, instance_id):
+        room = _get_room(code)
+        instance = _get_instance(room, instance_id)
+        player = get_player_from_token(room, request.headers.get(PLAYER_TOKEN_HEADER))
+        if instance.configuration_authority() != player:
+            raise PermissionDenied("Só quem define esta mesa pode excluí-la.")
+        deleted_id = str(instance.id)
+        instance.delete()
+        broadcast_room_event(room.code, {"type": "game_deleted", "instance_id": deleted_id})
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class GameInstanceJoinView(APIView):
     @extend_schema(
@@ -171,6 +207,8 @@ class GameInstanceJoinView(APIView):
             seat = current_players
 
         GameParticipant.objects.create(instance=instance, player=player, role=role, seat=seat)
+        _maybe_start_chess(instance)
+        instance.save()
         broadcast_room_event(room.code, {"type": "game_updated", "instance_id": str(instance.id)})
 
         return Response(
@@ -183,7 +221,7 @@ class GameInstanceConfigView(APIView):
         tags=["games"],
         summary="Altera a configuração de uma instância (só a autoridade de configuração)",
         parameters=[ROOM_CODE_PARAMETER, INSTANCE_ID_PARAMETER, PLAYER_TOKEN_PARAMETER],
-        request=BattleshipConfigSerializer,
+        request=None,
         responses={200: GameInstanceSerializer},
     )
     def patch(self, request, code, instance_id):
@@ -206,8 +244,21 @@ class GameInstanceConfigView(APIView):
             serializer.is_valid(raise_exception=True)
             _validate_battleship_config(serializer.validated_data)
             instance.config = dict(serializer.validated_data)
+        elif instance.game == GAME_CHESS:
+            serializer = ChessConfigSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            _validate_chess_config(serializer.validated_data)
+            instance.config = dict(serializer.validated_data)
+        elif instance.game == GAME_COUP:
+            serializer = CoupConfigSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            _validate_coup_config(serializer.validated_data)
+            instance.config = dict(serializer.validated_data)
+        else:
+            raise ValidationError("Este jogo ainda não aceita configuração.")
 
-        instance.save(update_fields=["config", "updated_at"])
+        _maybe_start_chess(instance)
+        instance.save()
         broadcast_room_event(room.code, {"type": "game_updated", "instance_id": str(instance.id)})
         return Response(_instance_detail_for_player(instance, player))
 
@@ -311,8 +362,9 @@ class GameInstanceRematchView(APIView):
     @extend_schema(
         tags=["games"],
         summary="Cria uma revanche a partir de uma partida finalizada",
-        description="Reaproveita sala, jogo e configuração; jogadores posicionam a frota de novo.",
+        description="Reaproveita sala e jogo; aceita config nova ou copia a da partida anterior.",
         parameters=[ROOM_CODE_PARAMETER, INSTANCE_ID_PARAMETER, PLAYER_TOKEN_PARAMETER],
+        request=RematchSerializer,
         responses={201: GameInstanceSerializer},
     )
     def post(self, request, code, instance_id):
@@ -327,8 +379,21 @@ class GameInstanceRematchView(APIView):
         ).exists():
             raise PermissionDenied("Só quem jogou a partida pode pedir revanche.")
 
+        serializer = RematchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        rematch_config = serializer.validated_data.get("config")
+        if rematch_config:
+            if instance.game == GAME_BATTLESHIP:
+                _validate_battleship_config(rematch_config)
+            elif instance.game == GAME_CHESS:
+                _validate_chess_config(rematch_config)
+            elif instance.game == GAME_COUP:
+                _validate_coup_config(rematch_config)
+        else:
+            rematch_config = copy.deepcopy(instance.config)
+
         rematch = GameInstance.objects.create(
-            room=room, game=instance.game, config=copy.deepcopy(instance.config)
+            room=room, game=instance.game, config=rematch_config
         )
         original_players = instance.participants.filter(role=GameParticipant.ROLE_PLAYER).order_by(
             "seat"
@@ -337,11 +402,146 @@ class GameInstanceRematchView(APIView):
             GameParticipant.objects.create(
                 instance=rematch, player=participant.player, seat=participant.seat
             )
+        _maybe_start_chess(rematch)
+        rematch.save()
 
         broadcast_room_event(room.code, {"type": "game_created", "instance_id": str(rematch.id)})
         return Response(
             _instance_detail_for_player(rematch, player), status=status.HTTP_201_CREATED
         )
+
+
+class ChessMoveView(APIView):
+    @extend_schema(
+        tags=["games"],
+        summary="Joga um lance no Xadrez",
+        parameters=[ROOM_CODE_PARAMETER, INSTANCE_ID_PARAMETER, PLAYER_TOKEN_PARAMETER],
+        request=ChessMoveSerializer,
+        responses={200: GameInstanceSerializer},
+    )
+    def post(self, request, code, instance_id):
+        room = _get_room(code)
+        instance = get_object_or_404(GameInstance, id=instance_id, room=room, game=GAME_CHESS)
+        player = get_player_from_token(room, request.headers.get(PLAYER_TOKEN_HEADER))
+        _require_player_participant(instance, player)
+
+        if instance.status != GameInstance.STATUS_IN_PROGRESS:
+            raise ValidationError("A partida ainda não começou (ou já terminou).")
+
+        serializer = ChessMoveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        instance.state.setdefault("mode", instance.config.get("mode", "assisted"))
+        try:
+            chess_engine.apply_move(
+                instance.state,
+                player.id,
+                serializer.validated_data["origin"],
+                serializer.validated_data["to"],
+                serializer.validated_data.get("promotion"),
+                now_ms=_now_ms(),
+            )
+        except chess_engine.ChessError as error:
+            raise ValidationError(str(error)) from error
+
+        _finish_chess_if_over(instance)
+        instance.save()
+        broadcast_room_event(room.code, {"type": "game_updated", "instance_id": str(instance.id)})
+        return Response(_instance_detail_for_player(instance, player))
+
+
+class ChessFlagView(APIView):
+    @extend_schema(
+        tags=["games"],
+        summary="Reivindica vitória por tempo no Xadrez",
+        parameters=[ROOM_CODE_PARAMETER, INSTANCE_ID_PARAMETER, PLAYER_TOKEN_PARAMETER],
+        responses={200: GameInstanceSerializer},
+    )
+    def post(self, request, code, instance_id):
+        room = _get_room(code)
+        instance = get_object_or_404(GameInstance, id=instance_id, room=room, game=GAME_CHESS)
+        player = get_player_from_token(room, request.headers.get(PLAYER_TOKEN_HEADER))
+        _require_player_participant(instance, player)
+        result = chess_engine.claim_flag(instance.state, instance.config, _now_ms())
+        if result != "flag":
+            raise ValidationError("O relógio do adversário ainda não zerou.")
+        _finish_chess_if_over(instance)
+        instance.save()
+        broadcast_room_event(room.code, {"type": "game_updated", "instance_id": str(instance.id)})
+        return Response(_instance_detail_for_player(instance, player))
+
+
+class GameInstanceStartView(APIView):
+    @extend_schema(
+        tags=["games"],
+        summary="Começa uma partida de Coup (anfitrião, com pelo menos dois jogadores)",
+        parameters=[ROOM_CODE_PARAMETER, INSTANCE_ID_PARAMETER, PLAYER_TOKEN_PARAMETER],
+        responses={200: GameInstanceSerializer},
+    )
+    def post(self, request, code, instance_id):
+        room = _get_room(code)
+        instance = get_object_or_404(GameInstance, id=instance_id, room=room, game=GAME_COUP)
+        player = get_player_from_token(room, request.headers.get(PLAYER_TOKEN_HEADER))
+
+        if instance.status != GameInstance.STATUS_CONFIGURING:
+            raise ValidationError("Esta partida já começou (ou já terminou).")
+        if instance.configuration_authority() != player:
+            raise PermissionDenied("Só o anfitrião pode começar a partida.")
+
+        players = list(
+            instance.participants.filter(role=GameParticipant.ROLE_PLAYER).order_by("seat")
+        )
+        if len(players) < 2:
+            raise ValidationError("É preciso pelo menos dois jogadores para começar.")
+
+        try:
+            instance.state = coup_engine.start_game(
+                [participant.player_id for participant in players],
+                instance.config,
+            )
+        except coup_engine.CoupError as error:
+            raise ValidationError(str(error)) from error
+
+        instance.status = GameInstance.STATUS_IN_PROGRESS
+        instance.save()
+        broadcast_room_event(room.code, {"type": "game_updated", "instance_id": str(instance.id)})
+        return Response(_instance_detail_for_player(instance, player))
+
+
+class CoupActView(APIView):
+    @extend_schema(
+        tags=["games"],
+        summary="Declara uma ação, contestação, bloqueio ou resposta no Coup",
+        parameters=[ROOM_CODE_PARAMETER, INSTANCE_ID_PARAMETER, PLAYER_TOKEN_PARAMETER],
+        request=CoupActSerializer,
+        responses={200: GameInstanceSerializer},
+    )
+    def post(self, request, code, instance_id):
+        room = _get_room(code)
+        instance = get_object_or_404(GameInstance, id=instance_id, room=room, game=GAME_COUP)
+        player = get_player_from_token(room, request.headers.get(PLAYER_TOKEN_HEADER))
+        _require_player_participant(instance, player)
+
+        if instance.status != GameInstance.STATUS_IN_PROGRESS:
+            raise ValidationError("A partida ainda não começou (ou já terminou).")
+
+        serializer = CoupActSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            coup_engine.apply_act(
+                instance.state,
+                player.id,
+                serializer.validated_data,
+                now_ms=_now_ms(),
+            )
+        except coup_engine.CoupError as error:
+            raise ValidationError(str(error)) from error
+
+        _finish_coup_if_over(instance)
+        instance.save()
+        broadcast_room_event(room.code, {"type": "game_updated", "instance_id": str(instance.id)})
+        return Response(_instance_detail_for_player(instance, player))
 
 
 def _require_player_participant(instance: GameInstance, player: Player) -> GameParticipant:
@@ -358,3 +558,61 @@ def _validate_battleship_config(config: dict) -> None:
         battleship_engine.validate_config(config["board_size"], config["fleet_sizes"])
     except battleship_engine.BattleshipError as error:
         raise ValidationError(str(error)) from error
+
+
+def _validate_chess_config(config: dict) -> None:
+    try:
+        chess_engine.validate_config(config)
+    except chess_engine.ChessError as error:
+        raise ValidationError(str(error)) from error
+
+
+def _validate_coup_config(config: dict) -> None:
+    try:
+        coup_engine.validate_config(config)
+    except coup_engine.CoupError as error:
+        raise ValidationError(str(error)) from error
+
+
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def _maybe_start_chess(instance: GameInstance) -> None:
+    if instance.game != GAME_CHESS or instance.status != GameInstance.STATUS_CONFIGURING:
+        return
+    players = list(
+        instance.participants.filter(role=GameParticipant.ROLE_PLAYER).order_by("seat")
+    )
+    if len(players) < 2:
+        return
+    host_id = players[0].player_id
+    guest_id = players[1].player_id
+    white_id, black_id = chess_engine.assign_colors(
+        host_id, guest_id, instance.config.get("host_color", "random")
+    )
+    instance.state = chess_engine.initial_state(
+        white_id, black_id, instance.config, now_ms=_now_ms()
+    )
+    instance.status = GameInstance.STATUS_IN_PROGRESS
+
+
+def _finish_chess_if_over(instance: GameInstance) -> None:
+    status_name = instance.state.get("status")
+    if status_name in {"playing", None}:
+        return
+    instance.status = GameInstance.STATUS_FINISHED
+    winner_key = instance.state.get("winner")
+    if winner_key:
+        winner = instance.participants.filter(player_id=winner_key).first()
+        instance.winner = winner.player if winner else None
+
+
+def _finish_coup_if_over(instance: GameInstance) -> None:
+    if not instance.state or instance.state.get("status") == "playing":
+        return
+    instance.status = GameInstance.STATUS_FINISHED
+    winner_key = instance.state.get("winner")
+    if winner_key:
+        winner = instance.participants.filter(player_id=winner_key).first()
+        instance.winner = winner.player if winner else None

@@ -11,8 +11,10 @@ ferramenta, decisão revertida), **atualize este arquivo antes de qualquer outro
   de `visual.md`. Testes com Vitest + React Testing Library.
 - **Backend** (`backend/`): Django 6.1 + Django Rest Framework + Django Channels + Daphne (ASGI;
   `daphne` é o primeiro item de `INSTALLED_APPS` para o `runserver` aceitar WebSocket). Apps
-  `rooms` (sala/jogadores + `RoomConsumer`) e `games` (modelo genérico de instância + motor de
-  Batalha Naval em `games/battleship/engine.py`; subpacotes `chess/` e `coup/` ainda vazios).
+  `rooms` (sala/jogadores + `RoomConsumer` + chat de texto em `ChatMessage`) e `games` (modelo genérico de instância + motor de
+  Batalha Naval em `games/battleship/engine.py` e Xadrez em `games/chess/engine.py`,
+  que envolve `python-chess` para legalidade de lances; subpacote `coup/` com motor em
+  `games/coup/engine.py` (ações, contestação, bloqueio, Reformation/Inquisidor).
   Testes com pytest + pytest-django + pytest-asyncio. Lint/format com ruff. Documentação da API
   via **drf-spectacular** (OpenAPI/Swagger) — schema em `/api/schema/`, UI em `/api/docs/`, ambos
   abertos por padrão (sem login). Views são `APIView` simples, então cada uma precisa de
@@ -57,6 +59,8 @@ ferramenta, decisão revertida), **atualize este arquivo antes de qualquer outro
   confirmar quando chegar a hora — ver `questions.md`).
 - Motores de jogo (regras de Xadrez, Coup, Batalha Naval) como módulos Python isolados da camada
   HTTP/WebSocket, testáveis sem precisar de request/response (ver `.cursor/rules/10-workflow.mdc`).
+  O motor de Xadrez usa a biblioteca livre `python-chess` só para legalidade de lances; o estado
+  JSON (FEN, relógio, modo) continua nosso.
 - Testes: **pytest** + **pytest-django**.
 
 ### Banco de dados
@@ -75,10 +79,24 @@ ferramenta, decisão revertida), **atualize este arquivo antes de qualquer outro
 
 ### Infra / deploy
 
-- A definir. Candidatos a avaliar quando chegar a hora: Vercel (frontend Next.js) + um provedor
-  com suporte a WebSockets persistentes para o backend (Railway, Render, Fly.io) + Postgres
-  gerenciado. Nenhuma decisão tomada ainda — não assumir nenhuma dessas opções como certa até
-  este documento ser atualizado.
+- **Decisão atual:** frontend na **Vercel**, backend no **Render** (serviço web ASGI com Daphne,
+  porque o `/ws/` do Django Channels não roda em WSGI/serverless), Postgres no **Neon**.
+  Isso encaixa na stack e nos planos gratuitos, com ressalvas: o Render free dorme depois de
+  inatividade (WebSocket cai; a sala precisa reconectar), o Neon free também suspende o compute,
+  e o channel layer em memória exige **uma única instância** do backend. Redis (Upstash) só entra
+  se houver mais de um worker.
+- Variáveis: `DATABASE_URL` (Neon), `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`,
+  `DJANGO_ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` (URL da Vercel), `CSRF_TRUSTED_ORIGINS`;
+  no frontend, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL` (`wss://…`), `NEXT_PUBLIC_SITE_URL`.
+  WhiteNoise serve o estático do Django. Start no Render: `backend/start.sh` (migrate +
+  collectstatic + `daphne`). Blueprint em `/render.yaml` (`rootDir: backend`) e
+  `backend/render.yaml` se o Root Directory do serviço for `backend`. `Procfile` e
+  `runtime.txt` ficam em `backend/`. **Não usar gunicorn** — ele é WSGI e não sobe o `/ws/`.
+  Root da Vercel: pasta `frontend/` (`frontend/vercel.json`).
+- Passo a passo (Neon → Render → Vercel, variáveis e checagens): `architecture_docs/deploy.md`.
+- Alternativas gratuitas razoáveis: **Fly.io** no lugar do Render (melhor para processo sempre
+  ligado, cota menor); Railway deixou de ser a opção “de graça de verdade”. A Vercel continua
+  sendo o lugar certo do Next.js; o backend **não** pode ir para a Vercel por causa do WebSocket.
 
 ### Ferramentas de qualidade
 

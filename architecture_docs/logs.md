@@ -3,6 +3,53 @@
 Changelog técnico, append-only, mais recente primeiro. Ver `.cursor/rules/20-logging.mdc` para o
 formato exigido.
 
+## 2026-09-21 (12)
+Guia passo a passo de produção em `architecture_docs/deploy.md` (Neon → Render → Vercel).
+
+## 2026-09-21 (11)
+Sidebar do Coup passa a reescrever IDs do histórico com nomes (`rewriteHistory`). Chat e lobby
+mostram `#[id]` curto por mesa. DELETE da instância (autoridade, inclusive no meio do jogo) +
+botão Excluir mesa. FortunaField ganhou borda para não sumir nos diálogos marfim. Deploy:
+`start.sh` + Procfile + runtime + `render.yaml` na raiz + `frontend/vercel.json` (Daphne, sem
+gunicorn).
+
+## 2026-09-21 (10)
+Header: logo à esquerda, Perfil/Chat à direita, `Container maxWidth="lg"`, hamburger no mobile.
+Coup: corte vira pilha compacta; contestação honesta entra em `show_proof` e o jogador troca a
+carta mostrada com a corte; se o blefe cai, quem contestou escolhe a carta oculta (por índice,
+sem ver). Backend aceita `DATABASE_URL` (Neon), WhiteNoise, CORS/CSRF de produção; rascunho
+`backend/render.yaml` para Daphne no Render.
+
+## 2026-09-21 (9)
+Fase 5 (sem o lobby em pixel art) + contraste dos botões desativados do Coup (contained MUI
+preto no grafite: agora dourado/marfim). Header com menu à esquerda (Perfil, Chat) e logo à
+direita. Perfil em `/perfil` só no localStorage, com aviso de que não persiste. Chat REST
+`/api/rooms/<code>/messages/` (sala de espera e por instância) + evento WS `chat_message`.
+Sidebar de espectador/estatísticas nos três jogos (botão + dialog no mobile). Páginas
+indexáveis em `/jogos/*`, sitemap/robots, Open Graph. Catálogo ganhou Truco, Lobisomem, Damas
+e Dominó como “em breve”.
+
+## 2026-09-21 (8)
+Xadrez realista: lances que não saem do xeque (ou entram nele) são aceitos e o jogador perde
+(`ignored_check`) — o assistido continua recusando. Coup: config sem overflow horizontal; ações
+agrupadas em padrão / cartas próprias / blefe, cada uma com "?" de ajuda; artes do Assassino e da
+Condessa redesenhadas.
+
+## 2026-09-21 (7)
+Correção visual da Batalha Naval (navios esmagados pelo padding % do overlay: agora o casco
+ocupa ~78% da casa, centrado, sem padding relativo à largura do navio). Xadrez realista: o clique
+origem→destino envia o lance mesmo sem `legal_moves` (essa lista continua oculta). Fase 4 (Coup):
+motor em `games/coup/engine.py` com renda/ajuda/golpe/taxar/assassinar/roubar/troca, contestação,
+bloqueio, Reformation (facção, conversão, desfalque) e Inquisidor; a partida só começa no POST
+`/start/` com ≥2 jogadores; ações em `/acts/`. UI em `/sala/[code]/coup/[instanceId]` com cartas
+3D (verso grafite/dourado com a máscara da capa, frente marfim) e janela de 15s.
+
+## 2026-09-21 (6)
+Fase 3 (Xadrez) + correção visual da Batalha Naval. **Batalha Naval**: overlay dos navios passou a usar a mesma grade 1fr do tabuleiro (antes as linhas colapsavam e os cascos ficavam altos demais); cascos recentrados no viewBox; ícone de acerto virou bomba maior. **Xadrez**: motor em `games/chess/engine.py` (python-chess) com roque, en passant, promoção, mate, afogamento, 50 lances/repetição e relógio; `IMPLEMENTED_GAMES` inclui chess; endpoints `config`, `moves` e `flag`; a partida começa quando o segundo jogador entra. UI em `/sala/[code]/xadrez/[instanceId]` com modos realista/assistido, dicas, PGN, setas de planejamento, relógio e popup de config/revanche. Lobby cria mesa de Xadrez pelo catálogo.
+
+## 2026-09-21 (5)
+Ajustes de UI depois da Fase 2 jogável. Campos passam a ser `FortunaField` (rótulo estático fora do input, valor grafite sobre marfim) para o outlined dourado do MUI não cortar a letra. Lobby da sala ganhou padding lateral; jogadores com avatar aleatório persistido (`Player.avatar`, `PATCH /api/rooms/<code>/players/me/`), borda dourada em "você" e popup para trocar o ícone; partidas viram card com capa, badge de status e "Abrir mesa"; catálogo de novo jogo no estilo da home (hover scale; Xadrez/Coup em breve). Batalha Naval: silhuetas SVG por comprimento, ícones de acerto/erro no lugar de casas verde/vermelho, aviso ao afundar, tabuleiros centralizados no mobile, config e revanche em dialog; rematch POST aceita `config` opcional.
+
 ## 2026-09-21 (4)
 Fase 2 (Batalha Naval) + o que restava da Fase 1 que dependia de haver jogo. **Backend**:
 modelo genérico `GameInstance`/`GameParticipant` (`games/models.py`) com autoridade de

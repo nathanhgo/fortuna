@@ -6,7 +6,7 @@ export default async function RoomPage({ params }: { params: Promise<{ code: str
   const { code } = await params;
 
   return (
-    <Box component="main" sx={{ bgcolor: fortunaColors.graphite, minHeight: '100%', py: 4 }}>
+    <Box component="main" sx={{ bgcolor: fortunaColors.graphite, minHeight: '100%', py: 4, px: { xs: 2, sm: 3 } }}>
       <RoomLobby code={code.toUpperCase()} />
     </Box>
   );

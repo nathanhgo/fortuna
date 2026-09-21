@@ -14,6 +14,8 @@ import uuid
 from django.db import models
 
 from games.battleship import engine as battleship_engine
+from games.chess import engine as chess_engine
+from games.coup import engine as coup_engine
 from rooms.models import Player, Room
 
 GAME_BATTLESHIP = "battleship"
@@ -32,13 +34,22 @@ DEFAULT_CONFIG_BY_GAME = {
         "board_size": battleship_engine.DEFAULT_BOARD_SIZE,
         "fleet_sizes": battleship_engine.DEFAULT_FLEET_SIZES,
     },
+    GAME_CHESS: dict(chess_engine.DEFAULT_CONFIG),
+    GAME_COUP: {
+        "max_players": coup_engine.DEFAULT_CONFIG["max_players"],
+        "copies": dict(coup_engine.DEFAULT_CONFIG["copies"]),
+        "reformation": False,
+        "inquisitor": False,
+        "challenge_seconds": coup_engine.DEFAULT_CONFIG["challenge_seconds"],
+    },
 }
 
-# Só jogos implementados entram aqui — chess/coup ainda não têm motor (ver mvp.md, Fases 3-4).
-IMPLEMENTED_GAMES = {GAME_BATTLESHIP}
+IMPLEMENTED_GAMES = {GAME_BATTLESHIP, GAME_CHESS, GAME_COUP}
 
 MAX_PLAYERS_BY_GAME = {
     GAME_BATTLESHIP: 2,
+    GAME_CHESS: 2,
+    GAME_COUP: 6,
 }
 
 
@@ -65,6 +76,8 @@ class GameInstance(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def max_players(self) -> int:
+        if self.game == GAME_COUP:
+            return int((self.config or {}).get("max_players") or MAX_PLAYERS_BY_GAME[GAME_COUP])
         return MAX_PLAYERS_BY_GAME[self.game]
 
     def active_player_participants(self):

@@ -1,12 +1,12 @@
 from rest_framework import serializers
 
-from .models import Player, Room
+from .models import AVATAR_KEYS, ChatMessage, Player, Room
 
 
 class PlayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
-        fields = ["id", "display_name"]
+        fields = ["id", "display_name", "avatar"]
 
 
 class PlayerWithTokenSerializer(serializers.ModelSerializer):
@@ -18,7 +18,7 @@ class PlayerWithTokenSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Player
-        fields = ["id", "display_name", "token"]
+        fields = ["id", "display_name", "token", "avatar"]
 
 
 class RoomSerializer(serializers.ModelSerializer):
@@ -58,4 +58,28 @@ class JoinRoomSerializer(serializers.Serializer):
         already_taken = room.players.filter(display_name__iexact=cleaned).exists()
         if already_taken:
             raise serializers.ValidationError("Esse nome já está em uso nesta sala.")
+        return cleaned
+
+
+class UpdateAvatarSerializer(serializers.Serializer):
+    avatar = serializers.ChoiceField(choices=AVATAR_KEYS)
+
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    display_name = serializers.CharField(source="player.display_name", read_only=True)
+    avatar = serializers.CharField(source="player.avatar", read_only=True)
+
+    class Meta:
+        model = ChatMessage
+        fields = ["id", "text", "display_name", "avatar", "created_at", "instance_id"]
+
+
+class PostChatMessageSerializer(serializers.Serializer):
+    text = serializers.CharField(max_length=400, allow_blank=False, trim_whitespace=True)
+    instance_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate_text(self, value):
+        cleaned = value.strip()
+        if not cleaned:
+            raise serializers.ValidationError("Escreva uma mensagem.")
         return cleaned

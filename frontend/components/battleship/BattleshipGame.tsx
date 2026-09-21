@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import {
   fireBattleshipShot,
@@ -15,12 +18,14 @@ import {
   placeBattleshipFleet,
   requestRematch,
   updateBattleshipConfig,
+  type BattleshipState,
   type GameInstanceDetail,
   type GameParticipantSummary,
 } from '@/lib/api';
 import {
   occupiedKeys,
   remainingFleetSizes,
+  sunkShips,
   tryPlaceShip,
   type Cell,
   type Orientation,
@@ -28,7 +33,12 @@ import {
 import { getStoredPlayer, type StoredPlayer } from '@/lib/playerStorage';
 import { subscribeToRoom } from '@/lib/roomSocket';
 import { fortunaColors } from '@/theme/palette';
+import { FortunaField } from '@/components/FortunaField';
 import { BattleshipBoard, type CellMark } from './BattleshipBoard';
+import { GameWithRail, SpectatorRail, splitAudience } from '@/components/SpectatorRail';
+import { DeleteInstanceButton } from '@/components/DeleteInstanceButton';
+import { tableLabel } from '@/lib/catalog';
+import { useRecordFinishedMatch } from '@/lib/useRecordFinishedMatch';
 
 interface BattleshipGameProps {
   code: string;
@@ -42,30 +52,38 @@ function authorityName(participants: GameParticipantSummary[]): string | null {
   return players[0]?.display_name ?? null;
 }
 
-function opponentId(state: NonNullable<GameInstanceDetail['state']>, viewerId: number): string | null {
+function opponentId(state: BattleshipState, viewerId: number): string | null {
   return Object.keys(state.fleets).find((key) => key !== String(viewerId)) ?? null;
 }
 
-function marksForFleet(
-  boardSize: number,
-  ships: number[][][],
-  shots: { cell: number[]; result: string }[],
-  revealShips: boolean
-): Record<string, CellMark> {
+function marksForShots(shots: { cell: number[]; result: string }[]): Record<string, CellMark> {
   const marks: Record<string, CellMark> = {};
-  if (revealShips) {
-    for (const ship of ships) {
-      for (const [row, col] of ship) {
-        marks[`${row},${col}`] = 'ship';
-      }
-    }
-  }
   for (const shot of shots) {
     const [row, col] = shot.cell;
-    marks[`${row},${col}`] = shot.result === 'miss' ? 'miss' : shot.result === 'sunk' ? 'sunk' : 'hit';
+    marks[`${row},${col}`] = shot.result === 'miss' ? 'miss' : 'hit';
   }
-  void boardSize;
   return marks;
+}
+
+function parseFleetInput(value: string): number[] {
+  return value
+    .split(',')
+    .map((item) => Number(item.trim()))
+    .filter((item) => Number.isFinite(item) && item > 0);
+}
+
+function sunkSnapshot(data: GameInstanceDetail, playerId: number) {
+  const state = data.state && 'fleets' in data.state ? data.state : null;
+  if (!state) {
+    return { ownSunk: [] as Cell[][], opponentShips: [] as Cell[][] };
+  }
+  const ownFleet = state.fleets[String(playerId)];
+  const oppKey = opponentId(state, playerId);
+  const opponentFleet = oppKey ? state.fleets[oppKey] : undefined;
+  return {
+    ownSunk: ownFleet ? sunkShips(ownFleet.ships, ownFleet.shots_received) : [],
+    opponentShips: opponentFleet?.ships ?? [],
+  };
 }
 
 export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
@@ -79,6 +97,14 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
   const [placedShips, setPlacedShips] = useState<Cell[][]>([]);
   const [preview, setPreview] = useState<Cell[]>([]);
   const [busy, setBusy] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [rematchOpen, setRematchOpen] = useState(false);
+  const [sunkNotice, setSunkNotice] = useState<string | null>(null);
+  const previousOwnSunk = useRef(0);
+  const previousOpponentSunk = useRef(0);
+  const sunkTrackingReady = useRef(false);
+  const sawConfigPrompt = useRef(false);
+  const sawRematchPrompt = useRef(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -92,9 +118,11 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
       const data = await getGameInstance(code, instanceId, getStoredPlayer(code)?.token);
       if (ignore) return;
       setInstance(data);
-      const config = data.config as { board_size?: number; fleet_sizes?: number[] };
-      if (config.board_size) setBoardSizeInput(String(config.board_size));
-      if (config.fleet_sizes) setFleetInput(config.fleet_sizes.join(', '));
+      const nextConfig = data.config as { board_size?: number; fleet_sizes?: number[] };
+      if (nextConfig.board_size) setBoardSizeInput(String(nextConfig.board_size));
+      if (nextConfig.fleet_sizes) setFleetInput(nextConfig.fleet_sizes.join(', '));
+      const viewerId = getStoredPlayer(code)?.id;
+      if (viewerId) noteSunkChanges(data, viewerId);
     }
 
     refresh().catch((err: unknown) => {
@@ -125,25 +153,54 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
   const remaining = remainingFleetSizes(fleetSizes, placedShips);
   const nextShipSize = remaining[0];
 
-  const ownFleet = instance?.state?.fleets[String(player?.id ?? '')];
+  const boardState =
+    instance?.state && 'fleets' in instance.state ? instance.state : null;
+  const ownFleet = boardState?.fleets[String(player?.id ?? '')];
   const alreadyPlaced = Boolean(ownFleet);
-  const opponentKey = instance?.state && player ? opponentId(instance.state, player.id) : null;
-  const opponentFleet = opponentKey ? instance?.state?.fleets[opponentKey] : undefined;
+  const opponentKey = boardState && player ? opponentId(boardState, player.id) : null;
+  const opponentFleet = opponentKey ? boardState?.fleets[opponentKey] : undefined;
+  useRecordFinishedMatch(instance, player, code);
+
+  useEffect(() => {
+    if (!instance || !player) return;
+    if (instance.status === 'configuring' && isAuthority && !alreadyPlaced && !sawConfigPrompt.current) {
+      sawConfigPrompt.current = true;
+      setConfigOpen(true);
+    }
+    if (instance.status === 'finished' && isPlayer && !sawRematchPrompt.current) {
+      sawRematchPrompt.current = true;
+      setRematchOpen(true);
+    }
+  }, [alreadyPlaced, instance, isAuthority, isPlayer, player]);
+
+  function noteSunkChanges(data: GameInstanceDetail, playerId: number) {
+    const { ownSunk, opponentShips } = sunkSnapshot(data, playerId);
+    if (!sunkTrackingReady.current) {
+      previousOwnSunk.current = ownSunk.length;
+      previousOpponentSunk.current = opponentShips.length;
+      sunkTrackingReady.current = Boolean(data.state);
+      return;
+    }
+    if (ownSunk.length > previousOwnSunk.current) {
+      const latest = ownSunk[ownSunk.length - 1];
+      setSunkNotice(`O adversário afundou seu navio de ${latest.length} casas.`);
+    } else if (opponentShips.length > previousOpponentSunk.current) {
+      const latest = opponentShips[opponentShips.length - 1];
+      setSunkNotice(`Você afundou um navio de ${latest.length} casas.`);
+    }
+    previousOwnSunk.current = ownSunk.length;
+    previousOpponentSunk.current = opponentShips.length;
+  }
 
   const ownMarks = useMemo(
-    () =>
-      marksForFleet(
-        boardSize,
-        ownFleet?.ships ?? placedShips,
-        ownFleet?.shots_received ?? [],
-        true
-      ),
-    [boardSize, ownFleet, placedShips]
+    () => marksForShots(ownFleet?.shots_received ?? []),
+    [ownFleet]
   );
   const opponentMarks = useMemo(
-    () => marksForFleet(boardSize, opponentFleet?.ships ?? [], opponentFleet?.shots_received ?? [], false),
-    [boardSize, opponentFleet]
+    () => marksForShots(opponentFleet?.shots_received ?? []),
+    [opponentFleet]
   );
+  const ownWrecked = ownFleet ? sunkShips(ownFleet.ships, ownFleet.shots_received) : [];
 
   async function handleJoin(role: 'player' | 'spectator') {
     if (!player) return;
@@ -160,20 +217,17 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
 
   async function handleSaveConfig() {
     if (!player) return;
-    const fleetSizesParsed = fleetInput
-      .split(',')
-      .map((item) => Number(item.trim()))
-      .filter((item) => Number.isFinite(item) && item > 0);
     setBusy(true);
     setError(null);
     try {
       setInstance(
         await updateBattleshipConfig(code, instanceId, player.token, {
           board_size: Number(boardSizeInput),
-          fleet_sizes: fleetSizesParsed,
+          fleet_sizes: parseFleetInput(fleetInput),
         })
       );
       setPlacedShips([]);
+      setConfigOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível salvar a configuração.');
     } finally {
@@ -215,11 +269,13 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
   }
 
   async function handleShot(cell: Cell) {
-    if (!player || instance?.state?.turn !== String(player.id)) return;
+    if (!player || boardState?.turn !== String(player.id)) return;
     setBusy(true);
     setError(null);
     try {
-      setInstance(await fireBattleshipShot(code, instanceId, player.token, cell));
+      const updated = await fireBattleshipShot(code, instanceId, player.token, cell);
+      setInstance(updated);
+      noteSunkChanges(updated, player.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível atirar.');
     } finally {
@@ -232,7 +288,10 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
     setBusy(true);
     setError(null);
     try {
-      const rematch = await requestRematch(code, instanceId, player.token);
+      const rematch = await requestRematch(code, instanceId, player.token, {
+        board_size: Number(boardSizeInput),
+        fleet_sizes: parseFleetInput(fleetInput),
+      });
       router.push(`/sala/${code}/batalha-naval/${rematch.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível pedir revanche.');
@@ -249,16 +308,50 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
     );
   }
 
-  const myTurn = instance.state?.turn === String(player.id);
-  const winnerId = instance.state?.winner;
+  const myTurn = boardState?.turn === String(player.id);
+  const winnerId = boardState?.winner;
+  const visibleOwnShips = ownFleet?.ships ?? placedShips;
+  const visibleOpponentShips = opponentFleet?.ships ?? [];
+  const audience = splitAudience(instance.participants);
+  const shotCount = boardState
+    ? Object.values(boardState.fleets).reduce(
+        (total, fleet) => total + fleet.shots_received.length,
+        0
+      )
+    : 0;
+  const battleNotes: string[] = [];
+  if (instance.status === 'configuring') battleNotes.push('Posicionando frotas');
+  if (instance.status === 'in_progress') {
+    battleNotes.push(myTurn ? 'Vez de atirar' : 'Aguardando o disparo');
+    battleNotes.push(`${shotCount} disparo${shotCount === 1 ? '' : 's'} no mar`);
+  }
+  if (instance.status === 'finished' && instance.winner_name) {
+    battleNotes.push(`${instance.winner_name} venceu`);
+  }
 
   return (
-    <Stack spacing={3} sx={{ maxWidth: 920, mx: 'auto', px: 2 }}>
-      <Button component={Link} href={`/sala/${code}`} sx={{ alignSelf: 'flex-start', color: fortunaColors.ivory }}>
-        Voltar à sala
-      </Button>
+    <GameWithRail
+      rail={
+        <SpectatorRail
+          players={audience.players}
+          spectators={audience.spectators}
+          notes={battleNotes}
+          saved={instance.status === 'in_progress'}
+          watching={viewerParticipation?.role === 'spectator'}
+        />
+      }
+    >
+    <Stack spacing={3} sx={{ width: '100%' }}>
+      <Stack direction="row" spacing={2} sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <Button component={Link} href={`/sala/${code}`} sx={{ color: fortunaColors.ivory }}>
+          Voltar à sala
+        </Button>
+        {isAuthority && player ? (
+          <DeleteInstanceButton roomCode={code} instanceId={instance.id} token={player.token} />
+        ) : null}
+      </Stack>
       <Typography variant="h4" component="h1" sx={{ color: fortunaColors.ivory, textAlign: 'center' }}>
-        Batalha Naval
+        {tableLabel('battleship', instance.id)}
       </Typography>
       <Typography variant="body2" sx={{ color: fortunaColors.ivory, opacity: 0.7, textAlign: 'center' }}>
         {instance.participants.map((participant) => participant.display_name).join(' · ') ||
@@ -276,34 +369,19 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
         </Stack>
       ) : null}
 
-      {instance.status === 'configuring' && isAuthority ? (
-        <Stack spacing={2} sx={{ maxWidth: 420, mx: 'auto', width: '100%' }}>
-          <Typography sx={{ color: fortunaColors.ivory }}>
-            Você define o tabuleiro desta mesa.
-          </Typography>
-          <TextField
-            label="Tamanho do tabuleiro"
-            value={boardSizeInput}
-            onChange={(event) => setBoardSizeInput(event.target.value)}
-            size="small"
-            sx={{ bgcolor: fortunaColors.ivory }}
-          />
-          <TextField
-            label="Navios (tamanhos separados por vírgula)"
-            value={fleetInput}
-            onChange={(event) => setFleetInput(event.target.value)}
-            size="small"
-            sx={{ bgcolor: fortunaColors.ivory }}
-          />
-          <Button variant="outlined" disabled={busy} onClick={handleSaveConfig}>
-            Salvar configuração
-          </Button>
-        </Stack>
+      {instance.status === 'configuring' && isAuthority && !configOpen ? (
+        <Button
+          variant="outlined"
+          onClick={() => setConfigOpen(true)}
+          sx={{ alignSelf: 'center', color: fortunaColors.ivory, borderColor: fortunaColors.gold }}
+        >
+          Alterar tabuleiro
+        </Button>
       ) : null}
 
       {instance.status === 'configuring' && isPlayer && !alreadyPlaced ? (
-        <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <Typography sx={{ color: fortunaColors.ivory }}>
+        <Stack spacing={2} sx={{ alignItems: 'center', width: '100%' }}>
+          <Typography sx={{ color: fortunaColors.ivory, textAlign: 'center' }}>
             {nextShipSize
               ? `Posicione o navio de ${nextShipSize} casas.`
               : 'Frota completa. Confirme para continuar.'}
@@ -316,6 +394,7 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
             {orientation === 'horizontal' ? 'Horizontal' : 'Vertical'}
           </Button>
           <Box
+            sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}
             onMouseLeave={() => setPreview([])}
             onMouseMove={(event) => {
               const target = event.target as HTMLElement;
@@ -332,6 +411,8 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
               title="Sua frota"
               boardSize={boardSize}
               marks={ownMarks}
+              ships={visibleOwnShips}
+              wreckedShips={ownWrecked}
               preview={preview}
               onCellClick={handlePlacementClick}
             />
@@ -365,17 +446,44 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
         <Stack
           direction={{ xs: 'column', md: 'row' }}
           spacing={4}
-          sx={{ justifyContent: 'center', alignItems: 'flex-start' }}
+          sx={{ justifyContent: 'center', alignItems: 'center', width: '100%' }}
         >
-          <BattleshipBoard title="Sua frota" boardSize={boardSize} marks={ownMarks} disabled />
+          <BattleshipBoard
+            title="Sua frota"
+            boardSize={boardSize}
+            marks={ownMarks}
+            ships={visibleOwnShips}
+            wreckedShips={ownWrecked}
+            disabled
+          />
           <BattleshipBoard
             title="Frota adversária"
             boardSize={boardSize}
             marks={opponentMarks}
+            ships={visibleOpponentShips}
+            wreckedShips={visibleOpponentShips}
             disabled={busy || instance.status !== 'in_progress' || !myTurn || !isPlayer}
             onCellClick={handleShot}
           />
         </Stack>
+      ) : null}
+
+      {sunkNotice ? (
+        <Box
+          role="status"
+          sx={{
+            border: `1px solid ${fortunaColors.gold}`,
+            color: fortunaColors.ivory,
+            px: 2,
+            py: 1.5,
+            textAlign: 'center',
+            maxWidth: 420,
+            mx: 'auto',
+            width: '100%',
+          }}
+        >
+          <Typography>{sunkNotice}</Typography>
+        </Box>
       ) : null}
 
       {instance.status === 'in_progress' ? (
@@ -386,16 +494,16 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
 
       {instance.status === 'finished' ? (
         <Stack spacing={2} sx={{ alignItems: 'center' }}>
-          <Typography variant="h5" sx={{ color: fortunaColors.gold }}>
+          <Typography variant="h5" sx={{ color: fortunaColors.gold, textAlign: 'center' }}>
             {winnerId === String(player.id)
               ? 'Você venceu.'
               : instance.winner_name
                 ? `${instance.winner_name} venceu.`
                 : 'Partida encerrada.'}
           </Typography>
-          {isPlayer ? (
-            <Button variant="contained" disabled={busy} onClick={handleRematch}>
-              Pedir revanche
+          {isPlayer && !rematchOpen ? (
+            <Button variant="contained" onClick={() => setRematchOpen(true)}>
+              Jogar novamente
             </Button>
           ) : null}
         </Stack>
@@ -406,6 +514,95 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
           {error}
         </Typography>
       ) : null}
+
+      <Dialog
+        open={configOpen}
+        onClose={() => setConfigOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        disableRestoreFocus
+        slotProps={{ paper: { sx: { bgcolor: fortunaColors.ivory, p: 1 } } }}
+      >
+        <DialogTitle sx={{ fontFamily: 'var(--font-cormorant), Georgia, serif' }}>
+          Você define o tabuleiro desta mesa
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <FortunaField
+              id="battleship-board-size"
+              label="Tamanho do tabuleiro"
+              tone="onLight"
+              value={boardSizeInput}
+              onChange={(event) => setBoardSizeInput(event.target.value)}
+            />
+            <FortunaField
+              id="battleship-fleet"
+              label="Navios (tamanhos separados por vírgula)"
+              tone="onLight"
+              value={fleetInput}
+              onChange={(event) => setFleetInput(event.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+          {player ? (
+            <DeleteInstanceButton roomCode={code} instanceId={instance.id} token={player.token} />
+          ) : (
+            <span />
+          )}
+          <Stack direction="row" spacing={1}>
+            <Button onClick={() => setConfigOpen(false)} sx={{ color: fortunaColors.graphite }}>
+              Usar este tabuleiro
+            </Button>
+            <Button variant="contained" disabled={busy} onClick={handleSaveConfig}>
+              Salvar configuração
+            </Button>
+          </Stack>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={rematchOpen}
+        onClose={() => setRematchOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        disableRestoreFocus
+        slotProps={{ paper: { sx: { bgcolor: fortunaColors.ivory, p: 1 } } }}
+      >
+        <DialogTitle sx={{ fontFamily: 'var(--font-cormorant), Georgia, serif' }}>
+          Jogar novamente?
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={{ color: fortunaColors.graphite }}>
+              A nova mesa usa as mesmas regras, a menos que você queira mudá-las.
+            </Typography>
+            <FortunaField
+              id="rematch-board-size"
+              label="Tamanho do tabuleiro"
+              tone="onLight"
+              value={boardSizeInput}
+              onChange={(event) => setBoardSizeInput(event.target.value)}
+            />
+            <FortunaField
+              id="rematch-fleet"
+              label="Navios (tamanhos separados por vírgula)"
+              tone="onLight"
+              value={fleetInput}
+              onChange={(event) => setFleetInput(event.target.value)}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRematchOpen(false)} sx={{ color: fortunaColors.graphite }}>
+            Agora não
+          </Button>
+          <Button variant="contained" disabled={busy} onClick={handleRematch}>
+            Jogar novamente
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
+    </GameWithRail>
   );
 }

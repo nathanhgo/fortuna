@@ -9,7 +9,10 @@ import os
 from pathlib import Path
 
 from corsheaders.defaults import default_headers
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
+
+from .database_url import database_config_from_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
@@ -39,6 +42,9 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "insecure-dev-key-only-for-loca
 DEBUG = env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 
+if not DEBUG and SECRET_KEY == "insecure-dev-key-only-for-local-use":
+    raise ImproperlyConfigured("Defina DJANGO_SECRET_KEY em produção.")
+
 INSTALLED_APPS = [
     # daphne precisa vir antes de django.contrib.staticfiles para o `runserver` servir ASGI
     # (WebSockets via Channels). Sem isso, o runserver cai no WSGI e o `/ws/` não funciona.
@@ -60,6 +66,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -89,10 +96,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 # Banco de dados
-# Em desenvolvimento local sem Postgres disponível, cai para SQLite — mas o padrão do projeto
-# é Postgres (ver docker-compose.yml e architecture_docs/stack.md). Defina DATABASE_URL-like
-# variáveis individuais no .env para usar Postgres.
-if os.environ.get("POSTGRES_DB"):
+# DATABASE_URL (Neon/Render) tem prioridade; senão POSTGRES_*; senão SQLite local.
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+if DATABASE_URL:
+    DATABASES = {"default": database_config_from_url(DATABASE_URL)}
+elif os.environ.get("POSTGRES_DB"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -150,6 +158,14 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS", ["http://localhost:3000", "http://127.0.0.1:3000"]
 )
+CORS_ALLOWED_ORIGIN_REGEXES = env_list("CORS_ALLOWED_ORIGIN_REGEXES", [])
+CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", [])
+
+# Render/Vercel terminam TLS no proxy.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Cabeçalho customizado com o token do jogador na sala (não é login — ver rooms/auth.py).
 CORS_ALLOW_HEADERS = [*default_headers, "x-player-token"]
@@ -162,5 +178,16 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT.mkdir(parents=True, exist_ok=True)
+if not DEBUG:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        },
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

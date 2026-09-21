@@ -4,6 +4,8 @@ import {
   occupiedKeys,
   remainingFleetSizes,
   shipCells,
+  shipLayout,
+  sunkShips,
   tryPlaceShip,
 } from './placement';
 
@@ -59,5 +61,54 @@ describe('tryPlaceShip', () => {
 describe('remainingFleetSizes', () => {
   it('removes placed ship sizes from the configured fleet', () => {
     expect(remainingFleetSizes([5, 4, 3, 3, 2], [[[0, 0], [0, 1], [0, 2]]])).toEqual([5, 4, 3, 2]);
+  });
+});
+
+describe('shipLayout', () => {
+  it('describes a horizontal ship from its occupied cells', () => {
+    expect(shipLayout([[0, 2], [0, 0], [0, 1]])).toEqual({
+      cells: [
+        [0, 0],
+        [0, 1],
+        [0, 2],
+      ],
+      length: 3,
+      orientation: 'horizontal',
+      origin: [0, 0],
+    });
+  });
+
+  it('describes a vertical ship from its occupied cells', () => {
+    expect(shipLayout([[3, 1], [1, 1], [2, 1]])).toEqual({
+      cells: [
+        [1, 1],
+        [2, 1],
+        [3, 1],
+      ],
+      length: 3,
+      orientation: 'vertical',
+      origin: [1, 1],
+    });
+  });
+});
+
+describe('sunkShips', () => {
+  it('returns only ships whose every cell was shot', () => {
+    const ships = [
+      [
+        [0, 0],
+        [0, 1],
+      ],
+      [
+        [2, 0],
+        [3, 0],
+      ],
+    ];
+    expect(sunkShips(ships, [{ cell: [0, 0] }, { cell: [0, 1] }, { cell: [2, 0] }])).toEqual([
+      [
+        [0, 0],
+        [0, 1],
+      ],
+    ]);
   });
 });

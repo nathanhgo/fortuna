@@ -46,3 +46,28 @@ export function remainingFleetSizes(fleetSizes: number[], placed: Cell[][]): num
   }
   return remaining;
 }
+
+export interface ShipLayout {
+  cells: Cell[];
+  length: number;
+  orientation: Orientation;
+  origin: Cell;
+}
+
+export function shipLayout(cells: Cell[]): ShipLayout {
+  const sorted = [...cells].sort((left, right) => left[0] - right[0] || left[1] - right[1]);
+  const origin = sorted[0];
+  const last = sorted[sorted.length - 1];
+  const orientation: Orientation =
+    sorted.length < 2 || origin[0] === last[0] ? 'horizontal' : 'vertical';
+  return { cells: sorted, length: sorted.length, orientation, origin };
+}
+
+export function isShipSunk(ship: Cell[], shotKeys: Set<string>): boolean {
+  return ship.every((cell) => shotKeys.has(cellKey(cell)));
+}
+
+export function sunkShips(ships: Cell[][], shots: { cell: number[] }[]): Cell[][] {
+  const shotKeys = new Set(shots.map((shot) => cellKey(shot.cell as Cell)));
+  return ships.filter((ship) => isShipSunk(ship, shotKeys));
+}

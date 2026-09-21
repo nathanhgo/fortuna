@@ -70,45 +70,47 @@ com o menor risco possível antes de encarar a complexidade de Xadrez e, princip
 
 ## Fase 3 — Xadrez
 
-- [ ] Motor de regras completo: movimentos de todas as peças, roque, en passant, promoção,
+- [x] Motor de regras completo: movimentos de todas as peças, roque, en passant, promoção,
       xeque, xeque-mate, afogamento (stalemate), empate por repetição/50 lances (pelo menos o
       básico; regras mais raras podem ficar para depois do MVP).
-- [ ] Modo "realista": sem indicação de movimentos possíveis, sem aviso de xeque na tela — fiel ao
+- [x] Modo "realista": sem indicação de movimentos possíveis, sem aviso de xeque na tela — fiel ao
       jogo físico.
-- [ ] Modo "assistido": indicação de casas para onde a peça selecionada pode mover, aviso de
+- [x] Modo "assistido": indicação de casas para onde a peça selecionada pode mover, aviso de
       xeque/xeque-mate, cronômetro configurável por jogador (ex.: 5+0, 10+5, sem limite),
       escolha de cor (aleatória, escolher, ou anfitrião escolhe), destaque do último lance jogado,
       notação de partida visível (PGN/algébrica), e setas de planejamento com botão direito
       (estilo chess.com/lichess) para marcar jogadas futuras sem executá-las.
-- [ ] Configuração pelo primeiro jogador: modo (realista/assistido) e, se assistido, tempo e cor.
-- [ ] Sincronização em tempo real de jogadas, incluindo reconexão sem perder estado da partida.
+- [x] Configuração pelo primeiro jogador: modo (realista/assistido) e, se assistido, tempo e cor.
+- [x] Sincronização em tempo real de jogadas, incluindo reconexão sem perder estado da partida.
 
 ## Fase 4 — Coup
 
-- [ ] Motor de regras base: 5 personagens (Duque, Assassino, Capitão, Embaixador, Condessa),
+- [x] Motor de regras base: 5 personagens (Duque, Assassino, Capitão, Embaixador, Condessa),
       ações (renda, ajuda externa, taxar, assassinar, roubar, trocar, dar golpe/coup) e contestação
       (challenge) e bloqueio (block), perda de carta de influência, eliminação, vitória.
-- [ ] Configuração pelo primeiro jogador a entrar no jogo, com o jogo base oficial como
-      **default** (5 personagens ativos, 2 cópias de cada): quantidade de cada carta no baralho,
-      quais personagens estão ativos/desativados, número máximo de jogadores (2 a 6, com suporte
-      a mais via variante oficial de 7-10 se fizer sentido incluir).
-- [ ] Sistema de alianças/religião (expansão *Reformation*): alocação de facção (Lealista/
+- [x] Configuração pelo primeiro jogador a entrar no jogo, com o jogo base oficial como
+      **default** (5 personagens ativos, 3 cópias de cada — o oficial; quantidade configurável):
+      quantidade de cada carta no baralho, quais personagens estão ativos/desativados, número
+      máximo de jogadores (2 a 6; 7–10 exigem mais cópias no baralho).
+- [x] Sistema de alianças/religião (expansão *Reformation*): alocação de facção (Lealista/
       Reformista) alternada no início, restrição de ações contra a própria facção, conversão paga,
       opcional e configurável pelo primeiro jogador (desativado por default).
-- [ ] Variante Inquisitor (substitui Embaixador) como opção configurável, se a expansão de
+- [x] Variante Inquisitor (substitui Embaixador) como opção configurável, se a expansão de
       alianças estiver ativa.
-- [ ] UI de blefe: cartas próprias visíveis só para o jogador, cartas dos outros ocultas, histórico
+- [x] UI de blefe: cartas próprias visíveis só para o jogador, cartas dos outros ocultas, histórico
       de ações/contestações visível para todos, feedback claro de perda de influência.
-- [ ] Sincronização em tempo real de ações, janelas de contestação/bloqueio com timeout.
+- [x] Sincronização em tempo real de ações, janelas de contestação/bloqueio com timeout.
 
 ## Fase 5 — Polimento e crescimento (pós-MVP)
 
-- [ ] SEO: metadados, Open Graph, conteúdo estático em português explicando cada jogo (páginas
+- [x] SEO: metadados, Open Graph, conteúdo estático em português explicando cada jogo (páginas
       indexáveis, não só a SPA da sala).
 - [ ] Evolução do lobby da sala para ambiente navegável em pixel art (ver `idea.md`).
-- [ ] Chat de texto dentro da sala.
-- [ ] Experiência de espectador completa (indicadores de quem assiste, talvez chat próprio) —
+- [x] Chat de texto dentro da sala.
+- [x] Experiência de espectador completa (indicadores de quem assiste, talvez chat próprio) —
       a capacidade básica de assistir já existe desde a Fase 1, isto é sobre polir a experiência.
-- [ ] Avaliar próximo jogo a adicionar entre os candidatos listados em `idea.md` (Truco, jogo
-      estilo Werewolf/Lobisomem, Damas, Dominó, Ludo).
-- [ ] Avaliar contas de usuário opcionais (estatísticas, histórico) — fora de escopo até aqui.
+- [~] Avaliar próximo jogo a adicionar entre os candidatos listados em `idea.md` (Truco, jogo
+      estilo Werewolf/Lobisomem, Damas, Dominó, Ludo) — capas no catálogo (home e sala) como
+      “em breve”; Ludo ainda não entrou no catálogo.
+- [~] Avaliar contas de usuário opcionais (estatísticas, histórico) — fora de escopo até aqui.
+      Há um perfil em `/perfil` só em cache do navegador, com aviso de que não persiste.

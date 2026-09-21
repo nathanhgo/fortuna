@@ -10,7 +10,7 @@ export default async function BattleshipPage({
   const { code, instanceId } = await params;
 
   return (
-    <Box component="main" sx={{ bgcolor: fortunaColors.graphite, minHeight: '100%', py: 4 }}>
+    <Box component="main" sx={{ bgcolor: fortunaColors.graphite, minHeight: '100%', py: 4, px: { xs: 2, sm: 3 } }}>
       <BattleshipGame code={code.toUpperCase()} instanceId={instanceId} />
     </Box>
   );

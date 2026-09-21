@@ -315,11 +315,14 @@ class TestFleetPlacementAndShots:
         assert instance.winner == alice
 
         response = api_client.post(
-            f"/api/rooms/{room.code}/games/{instance_id}/rematch/", {}, format="json"
+            f"/api/rooms/{room.code}/games/{instance_id}/rematch/",
+            {"config": {"board_size": 8, "fleet_sizes": [3, 2]}},
+            format="json",
         )
         assert response.status_code == 201
         rematch_id = response.data["id"]
         assert rematch_id != instance_id
+        assert response.data["config"] == {"board_size": 8, "fleet_sizes": [3, 2]}
         assert GameParticipant.objects.filter(
             instance_id=rematch_id, player=alice, role=GameParticipant.ROLE_PLAYER
         ).exists()

@@ -69,6 +69,27 @@ export const theme = createTheme({
         elevation: 0,
       },
     },
+    MuiFilledInput: {
+      defaultProps: {
+        disableUnderline: true,
+      },
+      styleOverrides: {
+        root: {
+          backgroundColor: fortunaColors.ivory,
+          color: fortunaColors.graphite,
+          borderRadius: 4,
+          '&:hover': {
+            backgroundColor: fortunaColors.ivory,
+          },
+          '&.Mui-focused': {
+            backgroundColor: fortunaColors.ivory,
+          },
+        },
+        input: {
+          color: fortunaColors.graphite,
+        },
+      },
+    },
     MuiAppBar: {
       defaultProps: {
         elevation: 0,

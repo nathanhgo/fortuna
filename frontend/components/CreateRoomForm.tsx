@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { createRoom } from '@/lib/api';
 import { storePlayer } from '@/lib/playerStorage';
 import { fortunaColors } from '@/theme/palette';
+import { FortunaField } from '@/components/FortunaField';
 
 export function CreateRoomForm() {
   const router = useRouter();
@@ -37,17 +37,12 @@ export function CreateRoomForm() {
 
   return (
     <Stack component="form" onSubmit={handleSubmit} spacing={2} sx={{ width: '100%', maxWidth: 360 }}>
-      <TextField
+      <FortunaField
         id="create-room-display-name"
         label="Seu nome"
         value={displayName}
         onChange={(event) => setDisplayName(event.target.value)}
-        size="small"
         autoComplete="off"
-        sx={{
-          bgcolor: fortunaColors.ivory,
-          '& .MuiOutlinedInput-root': { borderRadius: 1 },
-        }}
       />
       <Button type="submit" variant="contained" size="large" disabled={isSubmitting}>
         Criar sala

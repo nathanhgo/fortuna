@@ -47,6 +47,11 @@ ver as seções "Sem Docker" em [`backend/README.md`](backend/README.md) e
 [`frontend/README.md`](frontend/README.md). Nesse caso, o mesmo `.env` da raiz é lido por ambos
 os serviços — não existe um `.env` por serviço.
 
+### Deploy (produção)
+
+Frontend na Vercel, backend no Render (Daphne/ASGI), Postgres no Neon. Ordem e variáveis
+estão em [`architecture_docs/deploy.md`](architecture_docs/deploy.md).
+
 ### Verificando que está tudo funcionando
 
 Com `docker compose up --build` rodando (ou os serviços rodando localmente sem Docker):

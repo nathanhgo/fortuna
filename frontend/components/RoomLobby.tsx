@@ -5,44 +5,45 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Chip from '@mui/material/Chip';
+import Dialog from '@mui/material/Dialog';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
-import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import {
   createGameInstance,
   getRoom,
   joinRoom,
   listGameInstances,
+  updatePlayerAvatar,
   type GameInstanceSummary,
+  type GameKind,
+  type GameStatus,
   type PlayerSummary,
   type RoomSummary,
 } from '@/lib/api';
+import { AVATAR_KEYS, AVATAR_LABELS, type AvatarKey } from '@/lib/avatars';
 import { getStoredPlayer, storePlayer, type StoredPlayer } from '@/lib/playerStorage';
 import { subscribeToRoom } from '@/lib/roomSocket';
 import { fortunaColors } from '@/theme/palette';
+import { AvatarIcon } from '@/components/avatars/AvatarIcon';
+import { FortunaField } from '@/components/FortunaField';
+import { GameCoverCard } from '@/components/GameCoverCard';
+import { GAME_CATALOG, gameHref, tableLabel } from '@/lib/catalog';
 
 interface RoomLobbyProps {
   code: string;
 }
 
-const GAME_LABELS: Record<string, string> = {
-  battleship: 'Batalha Naval',
-  chess: 'Xadrez',
-  coup: 'Coup',
-};
-
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS: Record<GameStatus, string> = {
   configuring: 'Configurando',
   in_progress: 'Em andamento',
   finished: 'Finalizado',
 };
 
 export function RoomLobby({ code }: RoomLobbyProps) {
-  // player começa em null tanto no servidor quanto na primeira renderização do cliente — ler o
-  // localStorage direto no estado inicial faria o cliente "adiantar" o resultado antes da
-  // hidratação, gerando o mismatch clássico de SSR (servidor sempre vê null, cliente veria o
-  // token já salvo). O valor real só é lido depois de montar, no efeito abaixo.
   const router = useRouter();
   const [player, setPlayer] = useState<StoredPlayer | null>(null);
   const [room, setRoom] = useState<RoomSummary | null>(null);
@@ -51,6 +52,7 @@ export function RoomLobby({ code }: RoomLobbyProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
 
   useEffect(() => {
     // Leitura do localStorage tem que ficar num efeito (só roda no cliente, depois da
@@ -111,17 +113,35 @@ export function RoomLobby({ code }: RoomLobbyProps) {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleCreateBattleship() {
+  async function handleCreateGame(kind: GameKind) {
     if (!player) return;
     setError(null);
     setIsSubmitting(true);
     try {
-      const instance = await createGameInstance(code, player.token, 'battleship');
-      router.push(`/sala/${code}/batalha-naval/${instance.id}`);
+      const instance = await createGameInstance(code, player.token, kind);
+      if (kind === 'battleship') {
+        router.push(`/sala/${code}/batalha-naval/${instance.id}`);
+      } else if (kind === 'chess') {
+        router.push(`/sala/${code}/xadrez/${instance.id}`);
+      } else if (kind === 'coup') {
+        router.push(`/sala/${code}/coup/${instance.id}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível criar a partida.');
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleSelectAvatar(avatar: AvatarKey) {
+    if (!player) return;
+    setError(null);
+    try {
+      await updatePlayerAvatar(code, player.token, avatar);
+      setRoom(await getRoom(code));
+      setAvatarOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível alterar o ícone.');
     }
   }
 
@@ -131,19 +151,17 @@ export function RoomLobby({ code }: RoomLobbyProps) {
         component="form"
         onSubmit={handleJoin}
         spacing={2}
-        sx={{ maxWidth: 360, mx: 'auto', mt: 10 }}
+        sx={{ maxWidth: 360, mx: 'auto', mt: 6, width: '100%' }}
       >
         <Typography variant="h4" component="h1" sx={{ color: fortunaColors.ivory, textAlign: 'center' }}>
           Sala {code}
         </Typography>
-        <TextField
+        <FortunaField
           id="join-room-display-name"
           label="Seu nome"
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
-          size="small"
           autoComplete="off"
-          sx={{ bgcolor: fortunaColors.ivory, '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
         />
         <Button type="submit" variant="contained" size="large" disabled={isSubmitting}>
           Entrar na sala
@@ -158,7 +176,7 @@ export function RoomLobby({ code }: RoomLobbyProps) {
   }
 
   return (
-    <Stack spacing={3} sx={{ maxWidth: 480, mx: 'auto', mt: 10 }}>
+    <Stack spacing={4} sx={{ maxWidth: 720, mx: 'auto', mt: 6, width: '100%' }}>
       <Typography variant="h4" component="h1" sx={{ color: fortunaColors.ivory, textAlign: 'center' }}>
         Sala {code}
       </Typography>
@@ -169,68 +187,98 @@ export function RoomLobby({ code }: RoomLobbyProps) {
 
       <Divider sx={{ borderColor: `${fortunaColors.gold}55` }} />
 
-      <Stack spacing={1}>
+      <Stack spacing={1.5}>
         <Typography variant="body2" sx={{ color: fortunaColors.ivory, opacity: 0.7 }}>
           Jogadores na sala
         </Typography>
-        {(room?.players ?? []).map((roomPlayer: PlayerSummary) => (
-          <Box
-            key={roomPlayer.id}
-            sx={{ py: 1, px: 1.5, bgcolor: fortunaColors.ivory, border: `1px solid ${fortunaColors.gold}33` }}
-          >
-            <Typography sx={{ color: fortunaColors.graphite }} component="span">
-              {roomPlayer.display_name}
-            </Typography>
-            {roomPlayer.display_name === player.displayName ? (
-              <Typography sx={{ color: fortunaColors.graphite, opacity: 0.6 }} component="span">
-                {' '}
-                (você)
+        {(room?.players ?? []).map((roomPlayer: PlayerSummary) => {
+          const isSelf = roomPlayer.id === player.id;
+          return (
+            <Stack
+              key={roomPlayer.id}
+              direction="row"
+              spacing={1.5}
+              sx={{
+                py: 1,
+                px: 1.5,
+                bgcolor: fortunaColors.ivory,
+                border: `1px solid ${fortunaColors.gold}33`,
+                alignItems: 'center',
+              }}
+            >
+              <Box
+                component={isSelf ? 'button' : 'div'}
+                type={isSelf ? 'button' : undefined}
+                onClick={isSelf ? () => setAvatarOpen(true) : undefined}
+                aria-label={isSelf ? 'Alterar imagem de perfil' : undefined}
+                sx={{
+                  appearance: 'none',
+                  border: isSelf ? `2px solid ${fortunaColors.gold}` : `1px solid ${fortunaColors.gold}44`,
+                  borderRadius: '50%',
+                  p: 0.25,
+                  bgcolor: fortunaColors.ivory,
+                  cursor: isSelf ? 'pointer' : 'default',
+                  lineHeight: 0,
+                }}
+              >
+                <AvatarIcon
+                  avatar={roomPlayer.avatar}
+                  size={44}
+                  title={isSelf ? 'Seu ícone nesta sala' : `Ícone de ${roomPlayer.display_name}`}
+                />
+              </Box>
+              <Typography sx={{ color: fortunaColors.graphite }} component="span">
+                {roomPlayer.display_name}
               </Typography>
-            ) : null}
-          </Box>
-        ))}
+              {isSelf ? (
+                <Typography sx={{ color: fortunaColors.graphite, opacity: 0.6 }} component="span">
+                  (você)
+                </Typography>
+              ) : null}
+            </Stack>
+          );
+        })}
       </Stack>
 
-      <Stack spacing={1}>
+      <Stack spacing={1.5}>
         <Typography variant="body2" sx={{ color: fortunaColors.ivory, opacity: 0.7 }}>
           Partidas nesta sala
         </Typography>
         {instances.length === 0 ? (
           <Typography variant="body2" sx={{ color: fortunaColors.ivory, opacity: 0.6 }}>
-            Nenhuma partida ainda. Abra uma mesa de Batalha Naval para começar.
+            Nenhuma partida ainda. Escolha um jogo abaixo para abrir uma mesa.
           </Typography>
         ) : (
           instances.map((instance) => (
-            <Box
-              key={instance.id}
-              sx={{ py: 1, px: 1.5, bgcolor: fortunaColors.ivory, border: `1px solid ${fortunaColors.gold}33` }}
-            >
-              <Typography sx={{ color: fortunaColors.graphite }}>
-                {GAME_LABELS[instance.game] ?? instance.game} — {STATUS_LABELS[instance.status]}
-              </Typography>
-              <Typography variant="body2" sx={{ color: fortunaColors.graphite, opacity: 0.7 }}>
-                {instance.participants.map((participant) => participant.display_name).join(', ') ||
-                  'Ninguém sentou ainda'}
-              </Typography>
-              <Button
-                component={Link}
-                href={`/sala/${code}/batalha-naval/${instance.id}`}
-                size="small"
-                sx={{ mt: 1 }}
-              >
-                Abrir mesa
-              </Button>
-            </Box>
+            <InstanceCard key={instance.id} code={code} instance={instance} />
           ))
         )}
-        <Button
-          variant="contained"
-          onClick={handleCreateBattleship}
-          disabled={isSubmitting}
-          sx={{ mt: 1 }}
+      </Stack>
+
+      <Stack spacing={1.5}>
+        <Typography variant="body2" sx={{ color: fortunaColors.ivory, opacity: 0.7 }}>
+          Nova partida
+        </Typography>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+            gap: 2,
+          }}
         >
-          Nova Batalha Naval
-        </Button>
+          {GAME_CATALOG.map((game) => (
+            <GameCoverCard
+              key={game.slug}
+              name={game.name}
+              cover={game.cover}
+              disabled={!game.available || isSubmitting}
+              comingSoon={!game.available}
+              onClick={() => {
+                if (game.available && game.kind) void handleCreateGame(game.kind);
+              }}
+            />
+          ))}
+        </Box>
       </Stack>
 
       {error ? (
@@ -238,6 +286,94 @@ export function RoomLobby({ code }: RoomLobbyProps) {
           {error}
         </Typography>
       ) : null}
+
+      <Dialog
+        open={avatarOpen}
+        onClose={() => setAvatarOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        disableRestoreFocus
+        slotProps={{ paper: { sx: { bgcolor: fortunaColors.ivory } } }}
+      >
+        <DialogTitle sx={{ fontFamily: 'var(--font-cormorant), Georgia, serif' }}>
+          Escolha um ícone para esta sala
+        </DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 1.5,
+              py: 1,
+            }}
+          >
+            {AVATAR_KEYS.map((avatar) => (
+              <Button
+                key={avatar}
+                onClick={() => handleSelectAvatar(avatar)}
+                aria-label={AVATAR_LABELS[avatar]}
+                sx={{ minWidth: 0, p: 1, flexDirection: 'column', gap: 0.5 }}
+              >
+                <AvatarIcon avatar={avatar} size={48} title={AVATAR_LABELS[avatar]} />
+                <Typography variant="caption" sx={{ color: fortunaColors.graphite }}>
+                  {AVATAR_LABELS[avatar]}
+                </Typography>
+              </Button>
+            ))}
+          </Box>
+        </DialogContent>
+      </Dialog>
+    </Stack>
+  );
+}
+
+function InstanceCard({ code, instance }: { code: string; instance: GameInstanceSummary }) {
+  const players = instance.participants
+    .filter((participant) => participant.role === 'player')
+    .map((participant) => participant.display_name);
+  const href = gameHref(instance.game, code, instance.id);
+  const cover = GAME_CATALOG.find((game) => game.kind === instance.game)?.cover;
+
+  return (
+    <Stack
+      direction="row"
+      spacing={2}
+      sx={{
+        bgcolor: fortunaColors.ivory,
+        border: `1px solid ${fortunaColors.gold}33`,
+        p: 1.5,
+        alignItems: 'center',
+      }}
+    >
+      <Box
+        component="img"
+        src={cover ?? '/images/game-covers/chess-cover.png'}
+        alt=""
+        sx={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }}
+      />
+      <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <Typography variant="h6" component="h2" sx={{ color: fortunaColors.graphite }}>
+            {tableLabel(instance.game, instance.id)}
+          </Typography>
+          <Chip
+            label={STATUS_LABELS[instance.status]}
+            size="small"
+            variant="outlined"
+            sx={{
+              borderColor: fortunaColors.gold,
+              color: fortunaColors.graphite,
+              height: 24,
+            }}
+          />
+        </Stack>
+        <Typography variant="body2" sx={{ color: fortunaColors.graphite, opacity: 0.75 }}>
+          {players.length > 0 ? players.join(', ') : 'Ninguém sentou ainda'}
+        </Typography>
+        <Button component={Link} href={href} size="small" sx={{ alignSelf: 'flex-start', px: 0 }}>
+          Abrir mesa
+        </Button>
+      </Stack>
     </Stack>
   );
 }

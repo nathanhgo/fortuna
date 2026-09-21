@@ -1,0 +1,27 @@
+# Blueprint do monorepo. Root Directory no dashboard pode ficar na raiz.
+# Daphne (ASGI) — gunicorn WSGI não serve o WebSocket em /ws/.
+# Plano gratuito: 1 instância (channel layer em memória).
+
+services:
+  - type: web
+    name: fortuna-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash start.sh
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.0"
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
