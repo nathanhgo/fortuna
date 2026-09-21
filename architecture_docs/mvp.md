@@ -40,31 +40,33 @@ com o menor risco possível antes de encarar a complexidade de Xadrez e, princip
 - [x] Entrar em sala via link/código: `POST /api/rooms/<code>/players/`, nome de usuário
       **obrigatório** e único na sala (case-insensitive), válido apenas enquanto a sala existir
       (token do jogador guardado no `localStorage` do navegador, não é login/conta).
-- [~] Lobby da sala: `GET /api/rooms/<code>/` + página `/sala/<code>` listam os jogadores
-      presentes e o link de convite. **Falta**: lista de jogos disponíveis e de instâncias de jogo
-      em andamento (depende dos jogos existirem — Fase 2 em diante).
+- [x] Lobby da sala: `GET /api/rooms/<code>/` + página `/sala/<code>` listam os jogadores
+      presentes, o link de convite, as instâncias de jogo da sala e um botão para abrir
+      uma mesa de Batalha Naval (Xadrez/Coup entram nas Fases 3-4).
 - [x] Sem limite de jogadores por sala (nada no modelo/endpoint impõe limite; a capacidade fica a
       cargo de cada jogo individual quando existir).
-- [ ] Jogador escolhe entrar em uma instância existente (como jogador, se houver vaga, ou como
-      espectador) ou criar uma nova instância de um jogo — depende de haver jogos (Fase 2+).
-- [ ] Regra de autoridade de configuração: primeiro jogador de uma instância de jogo (ou jogador
-      que fica sozinho nela) define as configurações antes do início — depende de haver jogos.
-- [ ] Sincronização em tempo real do estado da sala (entradas/saídas de jogadores, jogos
-      iniciados/finalizados) via Django Channels — hoje a sala é só REST; falta o consumer real de
-      sala (o `EchoConsumer` da Fase 0 foi só a prova de conceito do Channels).
+- [x] Jogador escolhe entrar em uma instância existente (como jogador, se houver vaga, ou como
+      espectador) ou criar uma nova instância de um jogo implementado.
+- [x] Regra de autoridade de configuração: primeiro jogador de uma instância de jogo (ou jogador
+      que fica sozinho nela) define as configurações antes do início.
+- [x] Sincronização em tempo real do estado da sala (entradas/saídas de jogadores, jogos
+      criados/atualizados) via Django Channels (`RoomConsumer` em `ws/rooms/<code>/`). O
+      WebSocket só avisa que algo mudou; o cliente rebusca o recurso REST correspondente.
 - [ ] Expiração automática de sala/instância sem jogador ativo (1h) e pausa/W.O. por desconexão
-      (regras transversais acima) — depende da sincronização em tempo real acima para detectar
-      presença/desconexão.
+      (regras transversais acima) — presença/desconexão ainda não atualizam `Player.is_connected`
+      a partir do WebSocket.
 
 ## Fase 2 — Batalha Naval
 
-- [ ] Motor de regras: tabuleiro quadrado configurável, navios de 1 a 5 espaços, posicionamento
-      sem sobreposição e sem diagonais, validação de tiro, detecção de navio afundado e de vitória.
-- [ ] Configuração pelo primeiro jogador: tamanho do tabuleiro, conjunto de navios.
-- [ ] UI: posicionamento de navios (drag ou clique+rotação), tabuleiro próprio e tabuleiro do
+- [x] Motor de regras: tabuleiro quadrado configurável, navios de 1 a 5 espaços, posicionamento
+      sem sobreposição e sem diagonais, validação de tiro, detecção de navio afundado e de vitória
+      (`games/battleship/engine.py`).
+- [x] Configuração pelo primeiro jogador: tamanho do tabuleiro, conjunto de navios.
+- [x] UI: posicionamento de navios (clique + rotação), tabuleiro próprio e tabuleiro do
       oponente (oculto), feedback visual de acerto/erro/afundado.
-- [ ] Sincronização em tempo real dos tiros entre os dois jogadores.
-- [ ] Tela de vitória/derrota e opção de revanche dentro da mesma sala.
+- [x] Sincronização em tempo real dos tiros entre os dois jogadores (evento `game_updated` no
+      WebSocket da sala + re-fetch REST do estado filtrado por jogador).
+- [x] Tela de vitória/derrota e opção de revanche dentro da mesma sala.
 
 ## Fase 3 — Xadrez
 

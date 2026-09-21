@@ -9,8 +9,10 @@ ferramenta, decisão revertida), **atualize este arquivo antes de qualquer outro
   **v9** (versão confirmada — mais recente que o v6/v7 documentado quando este projeto começou;
   mantida conscientemente, sem downgrade). Tema customizado em `theme/` com a paleta e tipografia
   de `visual.md`. Testes com Vitest + React Testing Library.
-- **Backend** (`backend/`): Django 6.1 + Django Rest Framework + Django Channels + Daphne. Apps
-  `rooms` (sala/jogadores) e `games` (subpacotes `chess/`, `coup/`, `battleship/`, ainda vazios).
+- **Backend** (`backend/`): Django 6.1 + Django Rest Framework + Django Channels + Daphne (ASGI;
+  `daphne` é o primeiro item de `INSTALLED_APPS` para o `runserver` aceitar WebSocket). Apps
+  `rooms` (sala/jogadores + `RoomConsumer`) e `games` (modelo genérico de instância + motor de
+  Batalha Naval em `games/battleship/engine.py`; subpacotes `chess/` e `coup/` ainda vazios).
   Testes com pytest + pytest-django + pytest-asyncio. Lint/format com ruff. Documentação da API
   via **drf-spectacular** (OpenAPI/Swagger) — schema em `/api/schema/`, UI em `/api/docs/`, ambos
   abertos por padrão (sem login). Views são `APIView` simples, então cada uma precisa de

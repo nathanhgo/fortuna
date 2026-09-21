@@ -8,6 +8,7 @@ commitado — ver .env.example e .cursor/rules/90-commits.mdc). Nada de segredo 
 import os
 from pathlib import Path
 
+from corsheaders.defaults import default_headers
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +40,9 @@ DEBUG = env_bool("DJANGO_DEBUG", True)
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1"])
 
 INSTALLED_APPS = [
+    # daphne precisa vir antes de django.contrib.staticfiles para o `runserver` servir ASGI
+    # (WebSockets via Channels). Sem isso, o runserver cai no WSGI e o `/ws/` não funciona.
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -146,6 +150,9 @@ SPECTACULAR_SETTINGS = {
 CORS_ALLOWED_ORIGINS = env_list(
     "CORS_ALLOWED_ORIGINS", ["http://localhost:3000", "http://127.0.0.1:3000"]
 )
+
+# Cabeçalho customizado com o token do jogador na sala (não é login — ver rooms/auth.py).
+CORS_ALLOW_HEADERS = [*default_headers, "x-player-token"]
 
 # Internacionalização — conteúdo lido por pessoas é pt-br (ver
 # .cursor/rules/00-project-context.mdc); isso inclui o admin do Django.

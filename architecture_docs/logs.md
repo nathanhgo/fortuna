@@ -3,6 +3,22 @@
 Changelog técnico, append-only, mais recente primeiro. Ver `.cursor/rules/20-logging.mdc` para o
 formato exigido.
 
+## 2026-09-21 (4)
+Fase 2 (Batalha Naval) + o que restava da Fase 1 que dependia de haver jogo. **Backend**:
+modelo genérico `GameInstance`/`GameParticipant` (`games/models.py`) com autoridade de
+configuração calculada pelo menor `seat` entre jogadores ainda `is_connected`; motor puro em
+`games/battleship/engine.py` (config, frota, tiro, afundar, vitória, serialização filtrada por
+jogador — navios do oponente só aparecem depois de afundar). Endpoints REST em
+`/api/rooms/<code>/games/` (criar/listar/entrar/configurar/frota/tiro/revanche), autenticados
+pelo cabeçalho `X-Player-Token` (`rooms/auth.py`). `RoomConsumer` em `ws/rooms/<code>/` +
+`broadcast_room_event` avisam a sala a cada mudança; o WS não carrega estado. `daphne` passou
+a ser o primeiro `INSTALLED_APPS` para o `runserver` servir ASGI. CORS libera o header
+`x-player-token`. **Frontend**: lobby lista instâncias e cria Batalha Naval; página
+`/sala/[code]/batalha-naval/[instanceId]` com config, posicionamento (clique+rotação), dois
+tabuleiros, tiros e revanche; cliente WS em `lib/roomSocket.ts` rebusca REST ao receber evento.
+77 testes backend / 33 frontend passando. Fica pendente a expiração 1h e pausa/W.O. por
+desconexão (não ligamos presença ao connect/disconnect do WS ainda).
+
 ## 2026-09-21 (3)
 Correção de bug de hidratação no lobby, ajustes de DX no VS Code e Swagger na API.
 **Hydration fix**: `frontend/components/RoomLobby.tsx` inicializava o estado `player` lendo o

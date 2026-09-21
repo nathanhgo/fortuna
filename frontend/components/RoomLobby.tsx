@@ -1,28 +1,52 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { getRoom, type PlayerSummary, type RoomSummary } from '@/lib/api';
-import { joinRoom } from '@/lib/api';
+import {
+  createGameInstance,
+  getRoom,
+  joinRoom,
+  listGameInstances,
+  type GameInstanceSummary,
+  type PlayerSummary,
+  type RoomSummary,
+} from '@/lib/api';
 import { getStoredPlayer, storePlayer, type StoredPlayer } from '@/lib/playerStorage';
+import { subscribeToRoom } from '@/lib/roomSocket';
 import { fortunaColors } from '@/theme/palette';
 
 interface RoomLobbyProps {
   code: string;
 }
 
+const GAME_LABELS: Record<string, string> = {
+  battleship: 'Batalha Naval',
+  chess: 'Xadrez',
+  coup: 'Coup',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  configuring: 'Configurando',
+  in_progress: 'Em andamento',
+  finished: 'Finalizado',
+};
+
 export function RoomLobby({ code }: RoomLobbyProps) {
   // player começa em null tanto no servidor quanto na primeira renderização do cliente — ler o
   // localStorage direto no estado inicial faria o cliente "adiantar" o resultado antes da
   // hidratação, gerando o mismatch clássico de SSR (servidor sempre vê null, cliente veria o
   // token já salvo). O valor real só é lido depois de montar, no efeito abaixo.
+  const router = useRouter();
   const [player, setPlayer] = useState<StoredPlayer | null>(null);
   const [room, setRoom] = useState<RoomSummary | null>(null);
+  const [instances, setInstances] = useState<GameInstanceSummary[]>([]);
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,12 +64,21 @@ export function RoomLobby({ code }: RoomLobbyProps) {
   useEffect(() => {
     let ignore = false;
 
-    getRoom(code).then((data) => {
-      if (!ignore) setRoom(data);
+    async function refresh() {
+      const [roomData, instanceData] = await Promise.all([getRoom(code), listGameInstances(code)]);
+      if (ignore) return;
+      setRoom(roomData);
+      setInstances(instanceData);
+    }
+
+    refresh();
+    const unsubscribe = subscribeToRoom(code, () => {
+      refresh();
     });
 
     return () => {
       ignore = true;
+      unsubscribe();
     };
   }, [code]);
 
@@ -76,6 +109,20 @@ export function RoomLobby({ code }: RoomLobbyProps) {
     navigator.clipboard?.writeText(link);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleCreateBattleship() {
+    if (!player) return;
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      const instance = await createGameInstance(code, player.token, 'battleship');
+      router.push(`/sala/${code}/batalha-naval/${instance.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível criar a partida.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   if (player === null) {
@@ -144,9 +191,53 @@ export function RoomLobby({ code }: RoomLobbyProps) {
         ))}
       </Stack>
 
-      <Typography variant="body2" sx={{ color: fortunaColors.ivory, opacity: 0.6, textAlign: 'center' }}>
-        A escolha de jogos dentro da sala chega numa próxima fase.
-      </Typography>
+      <Stack spacing={1}>
+        <Typography variant="body2" sx={{ color: fortunaColors.ivory, opacity: 0.7 }}>
+          Partidas nesta sala
+        </Typography>
+        {instances.length === 0 ? (
+          <Typography variant="body2" sx={{ color: fortunaColors.ivory, opacity: 0.6 }}>
+            Nenhuma partida ainda. Abra uma mesa de Batalha Naval para começar.
+          </Typography>
+        ) : (
+          instances.map((instance) => (
+            <Box
+              key={instance.id}
+              sx={{ py: 1, px: 1.5, bgcolor: fortunaColors.ivory, border: `1px solid ${fortunaColors.gold}33` }}
+            >
+              <Typography sx={{ color: fortunaColors.graphite }}>
+                {GAME_LABELS[instance.game] ?? instance.game} — {STATUS_LABELS[instance.status]}
+              </Typography>
+              <Typography variant="body2" sx={{ color: fortunaColors.graphite, opacity: 0.7 }}>
+                {instance.participants.map((participant) => participant.display_name).join(', ') ||
+                  'Ninguém sentou ainda'}
+              </Typography>
+              <Button
+                component={Link}
+                href={`/sala/${code}/batalha-naval/${instance.id}`}
+                size="small"
+                sx={{ mt: 1 }}
+              >
+                Abrir mesa
+              </Button>
+            </Box>
+          ))
+        )}
+        <Button
+          variant="contained"
+          onClick={handleCreateBattleship}
+          disabled={isSubmitting}
+          sx={{ mt: 1 }}
+        >
+          Nova Batalha Naval
+        </Button>
+      </Stack>
+
+      {error ? (
+        <Typography variant="body2" sx={{ color: fortunaColors.wine }}>
+          {error}
+        </Typography>
+      ) : null}
     </Stack>
   );
 }

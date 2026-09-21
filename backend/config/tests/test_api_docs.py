@@ -12,6 +12,7 @@ def test_openapi_schema_is_served_and_lists_the_room_endpoints():
     assert "/api/rooms/" in schema["paths"]
     assert "/api/rooms/{code}/" in schema["paths"]
     assert "/api/rooms/{code}/players/" in schema["paths"]
+    assert "/api/rooms/{code}/games/" in schema["paths"]
 
 
 @pytest.mark.django_db

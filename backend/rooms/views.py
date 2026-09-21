@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Player, Room
+from .realtime import broadcast_room_event
 from .serializers import (
     CreatedRoomSerializer,
     CreateRoomSerializer,
@@ -85,6 +86,7 @@ class RoomPlayerListCreateView(APIView):
         player = Player.objects.create(
             room=room, display_name=serializer.validated_data["display_name"]
         )
+        broadcast_room_event(room.code, {"type": "room_updated"})
 
         return Response(
             PlayerWithTokenSerializer(player).data,

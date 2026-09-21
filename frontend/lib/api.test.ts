@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, createRoom, getRoom, joinRoom } from './api';
+import { ApiError, createGameInstance, createRoom, getRoom, joinRoom } from './api';
 
 describe('api client', () => {
   afterEach(() => {
@@ -71,5 +71,34 @@ describe('api client', () => {
 
     await expect(joinRoom('ABC123', 'Bob')).rejects.toBeInstanceOf(ApiError);
     await expect(joinRoom('ABC123', 'Bob')).rejects.toThrow('Esse nome já está em uso nesta sala.');
+  });
+
+  it('createGameInstance posts the game type with the player token', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({
+        id: 'inst-1',
+        game: 'battleship',
+        status: 'configuring',
+        config: { board_size: 10, fleet_sizes: [5, 4, 3, 3, 2] },
+        participants: [{ display_name: 'Alice', role: 'player', seat: 0 }],
+        winner_name: null,
+        created_at: '2026-01-01T00:00:00Z',
+        state: null,
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const instance = await createGameInstance('ABC123', 'tok-1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/rooms/ABC123/games/'),
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'X-Player-Token': 'tok-1' }),
+      })
+    );
+    expect(instance.game).toBe('battleship');
   });
 });

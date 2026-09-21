@@ -25,6 +25,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/health/", views.health_check, name="health-check"),
     path("api/", include("rooms.urls")),
+    path("api/rooms/<str:code>/games/", include("games.urls")),
     # Swagger/OpenAPI — schema bruto em /api/schema/, UI navegável (Swagger) em /api/docs/,
     # ambos abertos por padrão (ver SPECTACULAR_SETTINGS em settings.py).
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

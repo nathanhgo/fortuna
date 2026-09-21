@@ -52,6 +52,14 @@ padrão do projeto é Postgres via Docker.
   case-insensitive).
 - `GET /api/rooms/<code>/` — dados da sala e lista de jogadores (lobby).
 - `GET /api/health/` — smoke test simples.
+- `GET|POST /api/rooms/<code>/games/` — lista/cria instâncias de jogo na sala.
+- `GET /api/rooms/<code>/games/<id>/` — detalhe (tabuleiro filtrado por jogador).
+- `POST /api/rooms/<code>/games/<id>/join/` — entra como jogador ou espectador.
+- `PATCH /api/rooms/<code>/games/<id>/config/` — configuração (só a autoridade).
+- `POST /api/rooms/<code>/games/<id>/fleet/` — posiciona a frota (Batalha Naval).
+- `POST /api/rooms/<code>/games/<id>/shots/` — atira (Batalha Naval).
+- `POST /api/rooms/<code>/games/<id>/rematch/` — cria revanche.
+- `ws://.../ws/rooms/<code>/` — eventos da sala (`room_updated`, `game_created`, `game_updated`).
 - `ws://.../ws/echo/` — prova de conceito do Django Channels (devolve o que recebe).
 
 ## Documentação da API (Swagger)
