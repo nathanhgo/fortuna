@@ -1,0 +1,21 @@
+---
+description: Convenção de mensagens de commit do projeto Fortuna. Consulte esta regra sempre que for criar um commit.
+alwaysApply: false
+---
+
+# Commits
+
+- **Idioma**: inglês (consistente com o código).
+- **Formato**: Conventional Commits — `<tipo>(<escopo opcional>): <descrição no imperativo>`.
+  - Tipos usados no projeto: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `style`, `perf`.
+  - Escopo é o módulo/jogo afetado quando fizer sentido: `feat(chess): add en passant validation`,
+    `fix(coup): prevent challenge after action resolves`.
+  - Descrição curta na primeira linha (idealmente até ~72 caracteres). Corpo opcional abaixo,
+    separado por linha em branco, explicando o "porquê" quando não for óbvio pelo diff.
+- **Nunca commitar**: arquivos `.env`/segredos, chaves de API, `node_modules/`, `__pycache__/`,
+  `db.sqlite3`, arquivos de build (`.next/`, `staticfiles/`).
+- Um commit deve representar uma unidade lógica de trabalho. Evite misturar uma feature nova com
+  um refactor não relacionado no mesmo commit.
+- Se o commit fecha ou avança uma tarefa do `architecture_docs/mvp.md`, isso já deve estar
+  refletido no checkbox correspondente (ver `20-logging.mdc`) — não é necessário repetir isso na
+  mensagem de commit.

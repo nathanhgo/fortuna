@@ -1,0 +1,50 @@
+---
+description: Metodologia de desenvolvimento obrigatória do projeto Fortuna — TDD red-green-refactor
+alwaysApply: true
+---
+
+# Workflow: TDD obrigatório
+
+Todo código de comportamento (regras de jogo, endpoints de API, reducers/hooks de estado,
+componentes com lógica) segue **red-green-refactor**:
+
+1. **Red** — escreva o teste que descreve o comportamento esperado antes de escrever a
+   implementação. O teste deve falhar rodando (não apenas "por não existir o código").
+2. **Green** — escreva o mínimo de código necessário para o teste passar.
+3. **Refactor** — limpe o código mantendo os testes verdes. Rode a suíte de novo depois.
+
+Não é aceitável escrever a implementação primeiro e o teste depois "pra confirmar". Se isso
+acontecer, descarte o teste e reescreva-o de forma que ele realmente teria pego o bug antes do
+fix.
+
+## Onde ficam os testes
+
+- **Backend (Django/DRF)**: `backend/<app>/tests/test_*.py`, usando `pytest` + `pytest-django`.
+  Testes de regra de jogo (ex.: motor de Xadrez, Coup, Batalha Naval) ficam isolados da camada
+  HTTP, em módulos próprios (`backend/games/<jogo>/engine.py` + `tests/test_engine.py`), para
+  serem testados sem precisar de request/response.
+- **Frontend (Next.js/React)**: colocado ao lado do arquivo testado, `Componente.test.tsx`,
+  usando Vitest/Jest + React Testing Library. Testes de lógica pura (ex.: validação de jogada)
+  ficam em módulos `.ts` separados dos componentes visuais, também testados isoladamente.
+- Detalhes de ferramentas, comandos e convenções específicas de teste (nomeação, fixtures,
+  cobertura mínima) vão em `architecture_docs/tests.md` — esse arquivo é a referência completa,
+  esta regra só garante que o processo TDD seja seguido.
+
+## Comandos que definem "tarefa concluída"
+
+Antes de considerar qualquer tarefa de código pronta, rode e confirme que passam:
+
+- Backend: `pytest` (a partir de `backend/`).
+- Frontend: `npm test` (a partir de `frontend/`).
+- Se houver linter configurado: `ruff check .` (backend) e `npm run lint` (frontend).
+
+Se algum desses comandos ainda não existir no projeto (framework de teste não configurado, script
+não criado), **não pule a etapa silenciosamente**: sinalize explicitamente para o usuário que a
+infraestrutura de teste está faltando antes de prosseguir com a funcionalidade, e trate configurar
+essa infraestrutura como parte da tarefa.
+
+## Exceções
+
+Documentação, configuração pura (ex.: `settings.py` sem lógica condicional), scaffolding inicial
+de projeto e estilos puramente visuais sem lógica não exigem teste prévio — mas qualquer função
+que tome decisões (if/else, cálculo, validação) exige.

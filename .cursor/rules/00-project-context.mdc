@@ -1,0 +1,36 @@
+---
+description: Identidade do projeto Fortuna — o que é, para quem é, e convenções transversais fixas
+alwaysApply: true
+---
+
+# Fortuna
+
+Fortuna é um site que reúne versões digitais de jogos de mesa/cartas tradicionalmente jogados
+fisicamente (Xadrez, Coup, Batalha Naval, e outros no futuro), organizados em "salas de jogos"
+que qualquer pessoa pode criar e compartilhar por link, sem cadastro ou login. Público-alvo:
+grupos de amigos que já jogam esses jogos presencialmente e querem uma alternativa quando estão
+remotos, sem a fricção de criar conta em vários sites diferentes.
+
+Para entender o "porquê" do produto, veja `architecture_docs/idea.md`. Para saber qual é a stack
+real (vs. planejada) e como o projeto está estruturado tecnicamente, veja `architecture_docs/stack.md`.
+Para saber o que já foi construído e o que vem a seguir, veja `architecture_docs/mvp.md`. Não
+duplique esse conteúdo aqui — leia os documentos quando precisar de detalhe.
+
+## Convenções fixas
+
+- **Idioma**: código, nomes de variáveis/funções/arquivos e commits em inglês. Qualquer texto que
+  será lido por uma pessoa (UI, mensagens de erro visíveis ao usuário, documentação em
+  `architecture_docs/`, README, meta tags, textos de SEO) em português do Brasil.
+- **Sem contas pagas nem chaves de API pagas.** Se uma funcionalidade depender de um serviço pago,
+  sinalize isso explicitamente em vez de assumir a chave e seguir em frente.
+- **Tema visual**: inspiração mitologia grega/romana, paleta branco/preto/dourado, guiado por
+  `architecture_docs/visual.md`. Nunca hardcode cores ou espaçamentos direto nos componentes —
+  use o tema do Material UI (`theme.ts` / `createTheme`) como fonte única da verdade visual.
+- **Evite clichês de "site feito por IA"**: sem gradientes roxo/azul, sem ícones/emojis no lugar de
+  conteúdo real, sem cards de feature genéricos e idênticos, sem copy vago tipo "a melhor
+  plataforma para...". Detalhes completos em `architecture_docs/visual.md`.
+- **Sem login para jogar.** Login/conta é, na melhor das hipóteses, uma feature futura opcional
+  (ex.: salvar estatísticas) — nunca um requisito para criar sala, entrar em sala ou jogar.
+- **Autoridade de configuração de jogo**: quem entra primeiro em um jogo dentro de uma sala (ou
+  quem sobra sozinho nele) decide as configurações daquele jogo. Essa regra de negócio vale para
+  todos os jogos, atuais e futuros.

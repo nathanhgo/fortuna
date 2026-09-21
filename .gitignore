@@ -1,0 +1,44 @@
+# Segredos e configuração local — nunca versionar
+.env
+.env.local
+.env.*.local
+
+# Nota: architecture_docs/ e .cursor/ SÃO versionados de propósito.
+# Eles carregam o contexto do projeto entre sessões de IA (locais ou cloud)
+# e por isso precisam estar no repositório remoto. Ver architecture_docs/stack.md.
+
+# --- Frontend (Next.js / React) ---
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+.next/
+out/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Backend (Django) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+backend/staticfiles/
+backend/media/
+db.sqlite3
+db.sqlite3-journal
+
+# --- Postgres / infra local ---
+*.pgdata/
+postgres-data/
+
+# --- Editor / SO ---
+# .vscode/tasks.json e .vscode/launch.json SÃO versionados de propósito (tasks de dev
+# compartilhadas pela equipe). Configs pessoais de editor não deveriam ir em .vscode/settings.json
+# aqui — usar configuração de usuário do próprio editor para isso.
+.DS_Store
+.idea/
+*.swp

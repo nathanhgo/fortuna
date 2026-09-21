@@ -1,0 +1,50 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: Attach ao Django (Docker)",
+      "type": "debugpy",
+      "request": "attach",
+      "connect": { "host": "localhost", "port": 5678 },
+      "pathMappings": [
+        { "localRoot": "${workspaceFolder}/backend", "remoteRoot": "/app" }
+      ],
+      "justMyCode": true,
+      "presentation": {
+        "order": 1
+      }
+    },
+    {
+      "name": "Frontend: Attach ao servidor Next.js (Docker)",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "address": "localhost",
+      "localRoot": "${workspaceFolder}/frontend",
+      "remoteRoot": "/app",
+      "skipFiles": ["<node_internals>/**"],
+      "presentation": {
+        "order": 2
+      }
+    },
+    {
+      "name": "Frontend: Debug no navegador (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend",
+      "presentation": {
+        "order": 3
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Fullstack: Attach a tudo (Docker)",
+      "configurations": [
+        "Backend: Attach ao Django (Docker)",
+        "Frontend: Attach ao servidor Next.js (Docker)"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+---
+description: Continuidade entre sessões de IA — registro obrigatório em logs.md e atualização do mvp.md
+alwaysApply: true
+---
+
+# Logging entre sessões
+
+Sessões de IA não têm memória persistente entre si. A única forma de uma sessão futura saber o
+que já foi feito é o que está escrito em `architecture_docs/`. Por isso:
+
+1. **Toda vez que você editar código** (não documentação — código: backend, frontend, config,
+   infra), adicione uma entrada em `architecture_docs/logs.md`, no topo do arquivo (mais recente
+   primeiro), com:
+   - Data (`YYYY-MM-DD`).
+   - Descrição técnica direta do que mudou e por quê (uma ou duas frases, sem enrolação, sem
+     tom de changelog de marketing).
+   - Arquivos/módulos principais afetados, se relevante para quem for ler depois.
+
+2. **Sempre que uma feature listada em `architecture_docs/mvp.md` for concluída ou avançar**,
+   atualize o checkbox correspondente (`[ ]` → `[x]` para concluído, `[ ]` → `[~]` para parcial) na
+   mesma tarefa em que o código foi escrito — não deixe para depois.
+
+3. Não é necessário registrar em `logs.md` mudanças que são elas mesmas apenas documentação
+   (editar `idea.md`, `visual.md`, etc.) — isso já é rastreado pelo próprio git.
+
+## Formato da entrada em logs.md
+
+```
+## 2026-09-20
+Implementado motor de validação de movimento do Xadrez (backend/games/chess/engine.py),
+incluindo casos de roque e en passant. Testes em tests/test_engine.py.
+```
+
+Curto, direto, sem markdown decorativo além de um cabeçalho de data. Este arquivo é lido
+principalmente por outras IAs, não por humanos em busca de algo "bonito".

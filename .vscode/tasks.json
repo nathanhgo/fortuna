@@ -1,0 +1,157 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docker: Subir ambiente",
+      "detail": "Builda (se preciso) e sobe postgres + backend + frontend, com logs no terminal.",
+      "type": "shell",
+      "command": "docker compose up --build",
+      "isBackground": true,
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Docker: Subir ambiente (segundo plano)",
+      "detail": "Mesma coisa, mas em background — use 'Docker: Ver logs' para acompanhar.",
+      "type": "shell",
+      "command": "docker compose up --build -d",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Parar ambiente",
+      "type": "shell",
+      "command": "docker compose down",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: Ver logs (tudo)",
+      "type": "shell",
+      "command": "docker compose logs -f",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Docker: Ver logs (backend)",
+      "type": "shell",
+      "command": "docker compose logs -f backend",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Docker: Ver logs (frontend)",
+      "type": "shell",
+      "command": "docker compose logs -f frontend",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Docker: Ver logs (postgres)",
+      "type": "shell",
+      "command": "docker compose logs -f postgres",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Backend: Testes (pytest)",
+      "detail": "Requer o container do backend rodando (Docker: Subir ambiente).",
+      "type": "shell",
+      "command": "docker compose exec backend python -m pytest",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Lint (ruff check)",
+      "type": "shell",
+      "command": "docker compose exec backend ruff check .",
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Format (ruff format)",
+      "type": "shell",
+      "command": "docker compose exec backend ruff format .",
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Aplicar migrations",
+      "type": "shell",
+      "command": "docker compose exec backend python manage.py migrate",
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Criar migrations",
+      "type": "shell",
+      "command": "docker compose exec backend python manage.py makemigrations",
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Criar superusuário (admin)",
+      "detail": "Cria um usuário admin do Django (acesso em /admin/) — vai pedir usuário/email/senha.",
+      "type": "shell",
+      "command": "docker compose exec backend python manage.py createsuperuser",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Backend: Shell do Django",
+      "type": "shell",
+      "command": "docker compose exec backend python manage.py shell",
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Frontend: Testes (vitest)",
+      "detail": "Requer o container do frontend rodando (Docker: Subir ambiente).",
+      "type": "shell",
+      "command": "docker compose exec frontend npm test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Lint (eslint)",
+      "type": "shell",
+      "command": "docker compose exec frontend npm run lint",
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: Build de produção",
+      "type": "shell",
+      "command": "docker compose exec frontend npm run build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Testes: Backend + Frontend",
+      "detail": "Roda a suíte completa dos dois serviços — equivalente ao que a CI deve checar.",
+      "dependsOn": ["Backend: Testes (pytest)", "Frontend: Testes (vitest)"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ]
+}
