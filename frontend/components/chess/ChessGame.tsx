@@ -138,7 +138,8 @@ export function ChessGame({ code, instanceId }: ChessGameProps) {
     player && authorityName(instance?.participants ?? []) === player.displayName
   );
   const isPlayer = viewerParticipation?.role === 'player';
-  const chess = isChessState(instance?.state ?? null) ? instance?.state : null;
+  const rawState = instance?.state ?? null;
+  const chess = isChessState(rawState) ? rawState : null;
   useRecordFinishedMatch(instance, player, code);
 
   useEffect(() => {

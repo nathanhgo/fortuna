@@ -23,6 +23,7 @@ import {
   type GameParticipantSummary,
 } from '@/lib/api';
 import {
+  asShipGrid,
   occupiedKeys,
   remainingFleetSizes,
   sunkShips,
@@ -81,8 +82,8 @@ function sunkSnapshot(data: GameInstanceDetail, playerId: number) {
   const oppKey = opponentId(state, playerId);
   const opponentFleet = oppKey ? state.fleets[oppKey] : undefined;
   return {
-    ownSunk: ownFleet ? sunkShips(ownFleet.ships, ownFleet.shots_received) : [],
-    opponentShips: opponentFleet?.ships ?? [],
+    ownSunk: ownFleet ? sunkShips(asShipGrid(ownFleet.ships), ownFleet.shots_received) : [],
+    opponentShips: opponentFleet ? asShipGrid(opponentFleet.ships) : [],
   };
 }
 
@@ -200,7 +201,7 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
     () => marksForShots(opponentFleet?.shots_received ?? []),
     [opponentFleet]
   );
-  const ownWrecked = ownFleet ? sunkShips(ownFleet.ships, ownFleet.shots_received) : [];
+  const ownWrecked = ownFleet ? sunkShips(asShipGrid(ownFleet.ships), ownFleet.shots_received) : [];
 
   async function handleJoin(role: 'player' | 'spectator') {
     if (!player) return;
@@ -310,8 +311,8 @@ export function BattleshipGame({ code, instanceId }: BattleshipGameProps) {
 
   const myTurn = boardState?.turn === String(player.id);
   const winnerId = boardState?.winner;
-  const visibleOwnShips = ownFleet?.ships ?? placedShips;
-  const visibleOpponentShips = opponentFleet?.ships ?? [];
+  const visibleOwnShips = ownFleet ? asShipGrid(ownFleet.ships) : placedShips;
+  const visibleOpponentShips = opponentFleet ? asShipGrid(opponentFleet.ships) : [];
   const audience = splitAudience(instance.participants);
   const shotCount = boardState
     ? Object.values(boardState.fleets).reduce(

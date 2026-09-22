@@ -126,7 +126,8 @@ export function CoupGame({ code, instanceId }: CoupGameProps) {
   );
   const isPlayer = viewerParticipation?.role === 'player';
   const seated = instance?.participants.filter((participant) => participant.role === 'player') ?? [];
-  const coup = isCoupState(instance?.state ?? null) ? instance?.state : null;
+  const rawState = instance?.state ?? null;
+  const coup = isCoupState(rawState) ? rawState : null;
   useRecordFinishedMatch(instance, player, code);
 
   useEffect(() => {

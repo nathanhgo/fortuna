@@ -1,6 +1,10 @@
 export type Orientation = 'horizontal' | 'vertical';
 export type Cell = [number, number];
 
+export function asShipGrid(ships: number[][][]): Cell[][] {
+  return ships.map((ship) => ship.map((cell) => [cell[0], cell[1]] as Cell));
+}
+
 export function cellLabel(row: number, col: number): string {
   return `${String.fromCharCode(65 + col)}${row + 1}`;
 }

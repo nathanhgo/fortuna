@@ -3,6 +3,11 @@
 Changelog técnico, append-only, mais recente primeiro. Ver `.cursor/rules/20-logging.mdc` para o
 formato exigido.
 
+## 2026-09-22 (2)
+Typecheck do `next build` (Vercel): `isChessState`/`isCoupState` agora estreitam o estado
+sem `instance?.state` no ramo verdadeiro; frota da API vira `Cell[][]` via `asShipGrid`;
+fixture do CreateRoomForm ganhou `avatar`.
+
 ## 2026-09-22
 Render: `requirements.txt` e `start.sh` na raiz do monorepo (apontam para `backend/`) para o
 build não falhar quando o Root Directory do serviço fica na raiz. Blueprint `/render.yaml`

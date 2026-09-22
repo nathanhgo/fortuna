@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  asShipGrid,
   cellLabel,
   occupiedKeys,
   remainingFleetSizes,
@@ -7,6 +8,7 @@ import {
   shipLayout,
   sunkShips,
   tryPlaceShip,
+  type Cell,
 } from './placement';
 
 describe('cellLabel', () => {
@@ -94,7 +96,7 @@ describe('shipLayout', () => {
 
 describe('sunkShips', () => {
   it('returns only ships whose every cell was shot', () => {
-    const ships = [
+    const ships: Cell[][] = [
       [
         [0, 0],
         [0, 1],
@@ -110,5 +112,9 @@ describe('sunkShips', () => {
         [0, 1],
       ],
     ]);
+  });
+
+  it('normalizes API ship arrays into Cell tuples', () => {
+    expect(asShipGrid([[[0, 0], [0, 1]]])).toEqual([[[0, 0], [0, 1]]]);
   });
 });

@@ -30,7 +30,7 @@ describe('CreateRoomForm', () => {
   it('creates a room with the given display name, stores the player and redirects', async () => {
     vi.mocked(createRoom).mockResolvedValue({
       room: { code: 'ABC123', created_at: '2026-01-01T00:00:00Z', players: [] },
-      player: { id: 1, display_name: 'Alice', token: 'tok-1' },
+      player: { id: 1, display_name: 'Alice', token: 'tok-1', avatar: 'owl' },
     });
 
     render(<CreateRoomForm />);
