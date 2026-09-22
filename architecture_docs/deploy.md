@@ -101,15 +101,14 @@ Domínio customizado do backend: acrescente o host em `DJANGO_ALLOWED_HOSTS` e a
 
    | Variável | Valor |
    |---|---|
-   | `NEXT_PUBLIC_API_URL` | `https://fortuna-api.onrender.com` (sem barra no fim) |
-   | `NEXT_PUBLIC_WS_URL` | `wss://fortuna-api.onrender.com` (`wss`, não `ws`) |
-   | `NEXT_PUBLIC_SITE_URL` | URL canônica do site, ex. `https://fortuna.vercel.app` |
+   | `NEXT_PUBLIC_API_URL` | `https://fortuna-api-337z.onrender.com` (hostname exato, sem barra no fim) |
+   | `NEXT_PUBLIC_WS_URL` | `wss://fortuna-api-337z.onrender.com` (`wss`, não `ws`) |
+   | `NEXT_PUBLIC_SITE_URL` | URL canônica do site, ex. `https://fortuna-beige.vercel.app` |
 
    Essas três variáveis ficam na **Vercel**, não no Render. Tipo = **Config** (não Secret):
    a Vercel recusa `NEXT_PUBLIC_*` como secret porque o valor entra no JavaScript do
-   browser. Use o hostname **exato** do Render (ex. `fortuna-api-337z.onrender.com`).
-   `NEXT_PUBLIC_*` entra no bundle no build. Se errar a URL, faça **Redeploy** depois de
-   corrigir — só editar a variável no dashboard não atualiza o JS antigo.
+   browser. `NEXT_PUBLIC_*` entra no bundle no build. Se errar a URL, faça **Redeploy**
+   depois de corrigir — só editar a variável no dashboard não atualiza o JS antigo.
 5. Deploy. Anote a URL (`https://….vercel.app` ou o domínio próprio).
 6. Volte ao Render e ajuste `CORS_ALLOWED_ORIGINS` e `CSRF_TRUSTED_ORIGINS` com essa URL
    (e o domínio customizado, se houver). Salve — o Render reinicia o serviço.
