@@ -72,9 +72,9 @@ demora alguns segundos; as seguintes ficam normais.
    | `DJANGO_DEBUG` | `false` |
    | `DJANGO_SECRET_KEY` | string longa aleatória (o Blueprint pode gerar) |
    | `DATABASE_URL` | URI do Neon (passo 1) |
-   | `DJANGO_ALLOWED_HOSTS` | hostname do Render, sem `https://` — ex. `fortuna-api.onrender.com` |
-   | `CORS_ALLOWED_ORIGINS` | URL da Vercel com `https://`, sem barra no fim — ex. `https://fortuna.vercel.app` |
-   | `CSRF_TRUSTED_ORIGINS` | as duas origens HTTPS: `https://fortuna.vercel.app,https://fortuna-api.onrender.com` |
+   | `DJANGO_ALLOWED_HOSTS` | hostname **exato** do serviço (o log mostra `Available at your primary URL`), sem `https://` — ex. `fortuna-api-337z.onrender.com`. O Render também injeta `RENDER_EXTERNAL_HOSTNAME`; o Django passa a aceitar esse host sozinho. |
+   | `CORS_ALLOWED_ORIGINS` | URL da Vercel com `https://`, sem barra no fim — ex. `https://fortuna-beige.vercel.app` |
+   | `CSRF_TRUSTED_ORIGINS` | as duas origens HTTPS: `https://fortuna-beige.vercel.app,https://fortuna-api-337z.onrender.com` |
    | `CORS_ALLOWED_ORIGIN_REGEXES` | opcional, para previews: `https://.*\.vercel\.app` |
 
    Na primeira publicação a URL da Vercel ainda não existe: coloque um placeholder
@@ -105,6 +105,9 @@ Domínio customizado do backend: acrescente o host em `DJANGO_ALLOWED_HOSTS` e a
    | `NEXT_PUBLIC_WS_URL` | `wss://fortuna-api.onrender.com` (`wss`, não `ws`) |
    | `NEXT_PUBLIC_SITE_URL` | URL canônica do site, ex. `https://fortuna.vercel.app` |
 
+   Essas três variáveis ficam na **Vercel**, não no Render. Tipo = **Config** (não Secret):
+   a Vercel recusa `NEXT_PUBLIC_*` como secret porque o valor entra no JavaScript do
+   browser. Use o hostname **exato** do Render (ex. `fortuna-api-337z.onrender.com`).
    `NEXT_PUBLIC_*` entra no bundle no build. Se errar a URL, faça **Redeploy** depois de
    corrigir — só editar a variável no dashboard não atualiza o JS antigo.
 5. Deploy. Anote a URL (`https://….vercel.app` ou o domínio próprio).

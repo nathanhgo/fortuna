@@ -13,6 +13,7 @@ from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 from .database_url import database_config_from_url
+from .hosts import with_render_hostname
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPO_ROOT = BASE_DIR.parent
@@ -160,6 +161,11 @@ CORS_ALLOWED_ORIGINS = env_list(
 )
 CORS_ALLOWED_ORIGIN_REGEXES = env_list("CORS_ALLOWED_ORIGIN_REGEXES", [])
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS", [])
+ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS = with_render_hostname(
+    ALLOWED_HOSTS,
+    CSRF_TRUSTED_ORIGINS,
+    os.environ.get("RENDER_EXTERNAL_HOSTNAME", ""),
+)
 
 # Render/Vercel terminam TLS no proxy.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

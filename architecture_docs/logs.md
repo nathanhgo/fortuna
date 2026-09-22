@@ -3,6 +3,11 @@
 Changelog técnico, append-only, mais recente primeiro. Ver `.cursor/rules/20-logging.mdc` para o
 formato exigido.
 
+## 2026-09-22 (3)
+`ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` passam a incluir `RENDER_EXTERNAL_HOSTNAME`, para o
+healthcheck do Render não cair em DisallowedHost quando o nome do serviço não é o que
+foi digitado à mão.
+
 ## 2026-09-22 (2)
 Typecheck do `next build` (Vercel): `isChessState`/`isCoupState` agora estreitam o estado
 sem `instance?.state` no ramo verdadeiro; frota da API vira `Cell[][]` via `asShipGrid`;
