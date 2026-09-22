@@ -88,8 +88,9 @@ ferramenta, decisão revertida), **atualize este arquivo antes de qualquer outro
 - Variáveis: `DATABASE_URL` (Neon), `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`,
   `DJANGO_ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` (URL da Vercel), `CSRF_TRUSTED_ORIGINS`;
   no frontend, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL` (`wss://…`), `NEXT_PUBLIC_SITE_URL`.
-  WhiteNoise serve o estático do Django. Start no Render: `backend/start.sh` (migrate +
-  collectstatic + `daphne`). Blueprint em `/render.yaml` (`rootDir: backend`) e
+  WhiteNoise serve o estático do Django. Start no Render: `start.sh` na raiz (ou
+  `backend/start.sh` se o Root Directory for `backend`) — migrate + collectstatic +
+  `daphne`. Blueprint em `/render.yaml` (sem `rootDir`; wrappers na raiz) e
   `backend/render.yaml` se o Root Directory do serviço for `backend`. `Procfile` e
   `runtime.txt` ficam em `backend/`. **Não usar gunicorn** — ele é WSGI e não sobe o `/ws/`.
   Root da Vercel: pasta `frontend/` (`frontend/vercel.json`).

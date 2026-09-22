@@ -1,4 +1,5 @@
-# Blueprint do monorepo. Root Directory no dashboard pode ficar na raiz.
+# Blueprint do monorepo. Sem rootDir: o pip e o start.sh da raiz apontam para backend/.
+# Se o serviço no dashboard tiver Root Directory = backend, use backend/render.yaml.
 # Daphne (ASGI) — gunicorn WSGI não serve o WebSocket em /ws/.
 # Plano gratuito: 1 instância (channel layer em memória).
 
@@ -7,7 +8,6 @@ services:
     name: fortuna-api
     runtime: python
     plan: free
-    rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: bash start.sh
     envVars:

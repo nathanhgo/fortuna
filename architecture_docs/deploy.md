@@ -42,14 +42,29 @@ demora alguns segundos; as seguintes ficam normais.
 
 1. Envie o repositório para o GitHub (se ainda não estiver).
 2. Em [render.com](https://render.com) → **New → Blueprint**, aponte o repo. O Render lê
-   `/render.yaml` (serviço `fortuna-api`, `rootDir: backend`, start `bash start.sh`).
-3. Se preferir criar o Web Service na mão, sem Blueprint:
-   - **Root Directory:** `backend`
-   - **Runtime:** Python 3.13
+   `/render.yaml` (serviço `fortuna-api` na raiz do monorepo, start `bash start.sh`).
+3. Se preferir criar o Web Service na mão, sem Blueprint, use **uma** destas duas
+   configurações (não misture):
+
+   **A — Root Directory vazio (raiz do repo)** — é o que o Blueprint da raiz assume:
+   - **Root Directory:** *(deixe em branco)*
    - **Build:** `pip install -r requirements.txt`
    - **Start:** `bash start.sh`
+
+   **B — Root Directory `backend`:**
+   - **Root Directory:** `backend`
+   - **Build:** `pip install -r requirements.txt`
+   - **Start:** `bash start.sh`
+
+   Em ambos:
+   - **Runtime:** Python 3.13
    - **Instâncias:** **1** (channel layer em memória; duas instâncias quebram o WebSocket)
    - **Não** escolha gunicorn / WSGI
+
+   Se o build falhar com `No such file or directory: 'requirements.txt'`, o Root Directory
+   está errado para os comandos: ou deixe a raiz em branco (há um `requirements.txt` na
+   raiz que inclui `backend/requirements.txt`), ou coloque `backend` e mantenha os mesmos
+   comandos.
 4. Variáveis de ambiente (Environment):
 
    | Variável | Valor |

@@ -3,6 +3,11 @@
 Changelog técnico, append-only, mais recente primeiro. Ver `.cursor/rules/20-logging.mdc` para o
 formato exigido.
 
+## 2026-09-22
+Render: `requirements.txt` e `start.sh` na raiz do monorepo (apontam para `backend/`) para o
+build não falhar quando o Root Directory do serviço fica na raiz. Blueprint `/render.yaml`
+deixou de usar `rootDir`.
+
 ## 2026-09-21 (12)
 Guia passo a passo de produção em `architecture_docs/deploy.md` (Neon → Render → Vercel).
 

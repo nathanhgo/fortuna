@@ -1,0 +1,3 @@
+# Ponte para o Render quando o Root Directory é a raiz do monorepo.
+# Se o Root Directory for `backend/`, o pip usa backend/requirements.txt direto.
+-r backend/requirements.txt
